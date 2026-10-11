@@ -1,48 +1,60 @@
 @echo off
-chcp 65001 >nul
+setlocal
 title BridgeHub
 cd /d "%~dp0new-api-main"
 
 echo ============================================
-echo   BridgeHub - 个人 AI API 中转枢纽
+echo   BridgeHub - personal AI API relay hub
 echo ============================================
 
-rem ---- 前端构建产物检查（全新 clone 时缺失）----
+rem ---- frontend build check (missing after a fresh clone) ----
 if not exist "web\dist\index.html" (
-  echo [BridgeHub] 未检测到前端构建产物 web\dist
+  echo [BridgeHub] web\dist not found - frontend needs a build.
   where bun >nul 2>nul
   if errorlevel 1 (
-    echo [!] 未安装 bun，请先安装：https://bun.sh
-    echo     或手动构建前端后重新运行本脚本
+    echo [!] bun not found. Install it from https://bun.sh and rerun.
     pause
     exit /b 1
   )
-  echo [BridgeHub] 自动构建前端（首次约 1-2 分钟）...
+  echo [BridgeHub] building frontend, first run takes 1-2 minutes ...
   pushd web
   call bun install --registry https://registry.npmmirror.com
   call bun run build
   popd
   if not exist "web\dist\index.html" (
-    echo [!] 前端构建失败，请检查上方输出
+    echo [!] frontend build failed. Check the output above.
     pause
     exit /b 1
   )
 )
 
-rem ---- 主站二进制检查 ----
+rem ---- server binary check ----
 if not exist "new-api-dev.exe" (
-  echo [BridgeHub] 编译主站...
+  echo [BridgeHub] building server ...
   go build -o new-api-dev.exe .
   if errorlevel 1 (
-    echo [!] 编译失败，请确认已安装 Go 并检查上方输出
+    echo [!] server build failed. Make sure Go is installed.
     pause
     exit /b 1
   )
 )
 
-echo [BridgeHub] 启动主站 http://localhost:3000
-echo [BridgeHub] 已启用的反代服务将按 manifest 自动拉起（详见主站日志与「反代服务」面板）
-echo [BridgeHub] 停止服务：关闭本窗口或按 Ctrl+C
+rem ---- already running? ----
+netstat -ano | findstr "LISTENING" | findstr /C:":3000 " >nul
+if not errorlevel 1 (
+  echo [BridgeHub] port 3000 is already in use - the hub is probably running.
+  echo [BridgeHub] open http://localhost:3000 , or stop that process first.
+  pause
+  exit /b 0
+)
+
+echo [BridgeHub] starting hub at http://localhost:3000
+echo [BridgeHub] enabled relay services auto-start from their manifests.
+echo [BridgeHub] stop: close this window or press Ctrl+C
 echo.
 start "" http://localhost:3000
 new-api-dev.exe
+echo.
+echo [!] the server exited unexpectedly - see the error above.
+echo     common causes: port conflict, missing .env, corrupted build.
+pause

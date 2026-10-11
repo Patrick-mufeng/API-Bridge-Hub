@@ -22,6 +22,13 @@ fi
 BIN=./new-api-dev
 [ -f "./new-api-dev" ] || BIN=./new-api-dev.exe
 
-echo "[BridgeHub] 启动主站 http://localhost:3000"
-echo "[BridgeHub] 已启用的反代服务将按 manifest 自动拉起"
-"$BIN"
+if netstat -ano 2>/dev/null | grep LISTENING | grep -q ":3000 "; then
+  echo "[BridgeHub] port 3000 already in use - the hub is probably running."
+  echo "[BridgeHub] open http://localhost:3000 , or stop that process first."
+  exit 0
+fi
+
+echo "[BridgeHub] starting hub at http://localhost:3000"
+echo "[BridgeHub] enabled relay services auto-start from their manifests"
+"$BIN" || echo "[!] the server exited unexpectedly - see the error above"
+read -rp "Press Enter to close..." _
