@@ -190,6 +190,25 @@ export function DeepSeekGrid({ className }: DeepSeekGridProps) {
 
     const smooth = (t: number) => t * t * (3 - 2 * t)
 
+    // Flowing light tide: a soft luminous band that sweeps right -> left
+    // across the grid (same direction as the whale), tilted slightly so it
+    // reads as moving through water rather than a mechanical scanline.
+    const TIDE_PERIOD_MS = 9000
+    const TIDE_SIGMA = 170
+    const tideBoost = (
+      cellX: number,
+      cellY: number,
+      seconds: number,
+      w: number,
+      h: number
+    ) => {
+      const progress = ((seconds * 1000) % TIDE_PERIOD_MS) / TIDE_PERIOD_MS
+      const tideX = w + TIDE_SIGMA * 2 - progress * (w + TIDE_SIGMA * 4)
+      const dy = (cellY - h * 0.5) * 0.35
+      const d = cellX + dy - tideX
+      return Math.exp(-(d * d) / (2 * TIDE_SIGMA * TIDE_SIGMA))
+    }
+
     // Horizontal sway of a body column at time `seconds` — a wave that
     // travels head -> tail with amplitude picked by whaleAmp[col].
     const sway = (col: number, seconds: number) =>
@@ -263,6 +282,7 @@ export function DeepSeekGrid({ className }: DeepSeekGridProps) {
       }
 
       // --- grid cells -----------------------------------------------------
+      // Non-logo cells first (single style), then whale cells.
       ctx.fillStyle = GRID_COLOR
       for (const cell of cells) {
         const dx = cell.x - mouse.x
@@ -270,7 +290,10 @@ export function DeepSeekGrid({ className }: DeepSeekGridProps) {
         const dist = Math.hypot(dx, dy)
         const boost =
           dist < MOUSE_RADIUS ? smooth(1 - dist / MOUSE_RADIUS) : 0
-        const alpha = (dark ? 0.14 : 0.12) + boost * 0.4
+        const alpha =
+          (dark ? 0.25 : 0.12) +
+          boost * 0.4 +
+          tideBoost(cell.x, cell.y, seconds, w, h) * 0.45
         ctx.globalAlpha = alpha
         ctx.fillRect(
           cell.x - CELL_SIZE / 2,
@@ -294,8 +317,9 @@ export function DeepSeekGrid({ className }: DeepSeekGridProps) {
         const dist = Math.hypot(dx, dy)
         const boost =
           dist < MOUSE_RADIUS ? smooth(1 - dist / MOUSE_RADIUS) : 0
-        const alpha = Math.min(1, 0.55 + boost * 0.45)
-        const size = CELL_SIZE + boost * 3
+        const tide = tideBoost(worldX, worldY, seconds, w, h)
+        const alpha = Math.min(1, 0.7 + tide * 0.3 + boost * 0.3)
+        const size = CELL_SIZE + boost * 3 + tide * 2
         ctx.globalAlpha = alpha
         ctx.fillRect(
           worldX - size / 2,

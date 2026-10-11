@@ -33,7 +33,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
   const { systemName, logo, loading } = useSystemConfig()
 
   return (
-    <div className='relative grid h-svh max-w-none overflow-hidden'>
+    <div className='relative grid h-svh max-w-none overflow-hidden bg-black'>
       {/* Interactive DeepSeek grid backdrop */}
       <DeepSeekGrid className='absolute inset-0' />
 
