@@ -23,21 +23,32 @@ type AuthLayoutProps = {
   children: React.ReactNode
 }
 
+/**
+ * Split auth layout: the showcase pane (particle wordmark + live terminal)
+ * owns the left side on wide screens; the glass sign-in card sits centered
+ * in the right pane. Below `lg` it stacks — dim terminal backdrop behind a
+ * wordmark and the card.
+ */
 export function AuthLayout({ children }: AuthLayoutProps) {
   return (
-    <div className='relative grid h-svh max-w-none overflow-hidden bg-black'>
-      {/* Ambient terminal: what BridgeHub does, typing forever, dimmed */}
-      <TerminalBackdrop className='absolute inset-0 opacity-60' />
+    <div className='relative h-svh max-w-none overflow-hidden bg-black'>
+      {/* mobile-only dim terminal backdrop */}
+      <TerminalBackdrop className='absolute inset-0 opacity-30 lg:hidden' />
 
-      <div className='relative z-10 flex h-full flex-col items-center'>
-        {/* Particle wordmark — scatters around the pointer, then regroups */}
-        <div className='mt-[9vh] h-[23vh] w-full max-w-5xl px-6'>
-          <ParticleText text='Bridge-Hub' className='h-full w-full' />
+      <div className='relative flex h-full flex-col items-center lg:flex-row lg:items-stretch'>
+        {/* showcase pane */}
+        <div className='flex w-full flex-col items-center justify-center px-6 pt-[9vh] lg:w-[55%] lg:items-start lg:border-r lg:border-white/5 lg:px-14 lg:pt-0 xl:px-20'>
+          <div className='relative h-[15vh] w-full max-w-2xl lg:h-[20vh] lg:max-w-none'>
+            <ParticleText text='Bridge-Hub' className='absolute inset-0' />
+          </div>
+          <TerminalBackdrop className='relative mt-12 hidden w-full max-w-xl lg:block' />
         </div>
 
-        {/* Glass sign-in card, sitting below the wordmark */}
-        <div className='border-border/50 bg-card/60 mx-auto mt-10 flex w-full flex-col justify-center space-y-2 rounded-2xl border px-4 py-8 shadow-2xl shadow-black/60 backdrop-blur-xl sm:w-[460px] sm:p-8'>
-          {children}
+        {/* card pane */}
+        <div className='flex flex-1 items-start justify-center px-6 pt-2 lg:items-center lg:pt-0'>
+          <div className='border-border/50 bg-card/60 mx-auto mt-6 flex w-full flex-col justify-center space-y-2 rounded-2xl border px-4 py-8 shadow-2xl shadow-black/60 backdrop-blur-xl sm:w-[420px] sm:p-8 lg:mt-0'>
+            {children}
+          </div>
         </div>
       </div>
     </div>
