@@ -25,12 +25,14 @@ type DeepSeekGridProps = {
 }
 
 // Grid geometry, in CSS pixels.
-const CELL_PITCH = 24
-const CELL_SIZE = 10
+const CELL_PITCH = 18
+const CELL_SIZE = 8
 const MOUSE_RADIUS = 190
 
 // The whale swims right -> left, then re-enters from the right edge.
 const CROSSING_MS = 34000
+// Tail-beat: about one full sweep per second, wave running head -> tail.
+const TAIL_BEAT_HZ = 0.9
 
 // DeepSeek brand blue for whale cells; neutral slate for the rest.
 const LOGO_COLOR = '#5786FE'
@@ -38,6 +40,8 @@ const GRID_COLOR = '#64748b'
 const BUBBLE_COLOR = '#7dd3fc'
 
 type Cell = { x: number; y: number }
+
+type WhaleCell = { lx: number; ly: number }
 
 type Bubble = {
   x: number
@@ -60,9 +64,11 @@ type Plankton = {
 
 /**
  * Interactive ocean backdrop: a grid of cells the DeepSeek whale swims
- * through, right to left. Cells near the pointer light up; the whale leaves
- * a bubble trail, ambient bubbles rise from the floor, plankton drifts with
- * the current. `prefers-reduced-motion` renders a static centered whale.
+ * through, right to left, with a carangiform body wave — head barely moves,
+ * amplitude grows toward the tail so the tail fin visibly sweeps. Cells near
+ * the pointer light up; the whale leaves a bubble trail, ambient bubbles
+ * rise, plankton drifts with the current. `prefers-reduced-motion` renders
+ * a static centered whale.
  */
 export function DeepSeekGrid({ className }: DeepSeekGridProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -83,15 +89,17 @@ export function DeepSeekGrid({ className }: DeepSeekGridProps) {
       '(prefers-reduced-motion: reduce)'
     ).matches
 
-    // Screen-space grid cells (no per-cell logo flag: membership is derived
-    // from the whale's live position every frame).
     let cells: Cell[] = []
 
     // Whale pattern in its own local grid space, sampled once per resize.
-    let whaleSet = new Set<number>()
+    // Head sits at lx = 0 (the mark faces left, matching the swim direction);
+    // the tail is the high-lx end, where the body wave amplitude peaks.
+    let whaleCells: WhaleCell[] = []
+    let whaleAmp: Float32Array = new Float32Array(0)
     let whaleCols = 0
     let whaleRows = 0
     let whaleBox = 0
+    let maxSway = 0
 
     let bubbles: Bubble[] = []
     let plankton: Plankton[] = []
@@ -119,11 +127,10 @@ export function DeepSeekGrid({ className }: DeepSeekGridProps) {
       }
 
       // Sample the whale mark into its OWN local grid (one pixel per cell),
-      // centered in a box of ~36% viewport width.
-      whaleBox = Math.min(w * 0.36, h * 0.6, 560)
+      // centered in a box of ~44% viewport width.
+      whaleBox = Math.min(w * 0.44, h * 0.68, 640)
       whaleCols = Math.ceil(whaleBox / CELL_PITCH) + 1
       whaleRows = Math.ceil(whaleBox / CELL_PITCH) + 1
-      whaleSet = new Set<number>()
       const mask = document.createElement('canvas')
       mask.width = whaleCols
       mask.height = whaleRows
@@ -139,12 +146,22 @@ export function DeepSeekGrid({ className }: DeepSeekGridProps) {
       mctx.fill(new Path2D(DEEPSEEK_LOGO_PATH))
       mctx.restore()
       const data = mctx.getImageData(0, 0, whaleCols, whaleRows).data
+
+      whaleCells = []
       for (let row = 0; row < whaleRows; row++) {
         for (let col = 0; col < whaleCols; col++) {
           if (data[(row * whaleCols + col) * 4 + 3] > 127) {
-            whaleSet.add(row * whaleCols + col)
+            whaleCells.push({ lx: col, ly: row })
           }
         }
+      }
+
+      // Carangiform amplitude profile: ~0 at the head, peaking at the tail.
+      maxSway = whaleBox * 0.055
+      whaleAmp = new Float32Array(whaleCols)
+      for (let col = 0; col < whaleCols; col++) {
+        const t = (col + 0.5) / whaleCols
+        whaleAmp[col] = maxSway * Math.pow(t, 1.6)
       }
 
       // Seed plankton across the viewport.
@@ -173,6 +190,14 @@ export function DeepSeekGrid({ className }: DeepSeekGridProps) {
 
     const smooth = (t: number) => t * t * (3 - 2 * t)
 
+    // Horizontal sway of a body column at time `seconds` — a wave that
+    // travels head -> tail with amplitude picked by whaleAmp[col].
+    const sway = (col: number, seconds: number) =>
+      whaleAmp[col] *
+      Math.sin(
+        seconds * TAIL_BEAT_HZ * Math.PI * 2 - (col / whaleCols) * 2.4
+      )
+
     const draw = (time: number) => {
       const w = canvas.clientWidth
       const h = canvas.clientHeight
@@ -200,14 +225,11 @@ export function DeepSeekGrid({ className }: DeepSeekGridProps) {
 
       // --- bubbles: whale trail + ambient risers -------------------------
       if (!reducedMotion) {
-        if (
-          whaleVisible &&
-          Math.random() < 0.1 &&
-          bubbles.length < 60
-        ) {
+        const tailX = originX + whaleBox * 0.92 + sway(whaleCols - 2, seconds)
+        if (whaleVisible && Math.random() < 0.12 && bubbles.length < 60) {
           bubbles.push({
-            x: whaleX + whaleBox * (0.3 + Math.random() * 0.15),
-            y: whaleY + (Math.random() - 0.5) * whaleBox * 0.25,
+            x: tailX,
+            y: originY + whaleBox * (0.3 + Math.random() * 0.35),
             r: 1.2 + Math.random() * 2.6,
             vy: -(14 + Math.random() * 22),
             wobbleAmp: 2 + Math.random() * 5,
@@ -241,7 +263,6 @@ export function DeepSeekGrid({ className }: DeepSeekGridProps) {
       }
 
       // --- grid cells -----------------------------------------------------
-      // Non-logo cells first (single style), then whale cells.
       ctx.fillStyle = GRID_COLOR
       for (const cell of cells) {
         const dx = cell.x - mouse.x
@@ -259,27 +280,29 @@ export function DeepSeekGrid({ className }: DeepSeekGridProps) {
         )
       }
 
+      // --- whale cells: painted at their swayed, sub-pixel positions ------
       ctx.fillStyle = LOGO_COLOR
-      const stride = whaleCols
-      for (const cell of cells) {
-        const lx = Math.floor((cell.x - originX) / CELL_PITCH)
-        const ly = Math.floor((cell.y - originY) / CELL_PITCH)
-        if (lx < 0 || ly < 0 || lx >= whaleCols || ly >= whaleRows) continue
-        if (!whaleSet.has(ly * stride + lx)) continue
-
-        const dx = cell.x - mouse.x
-        const dy = cell.y - mouse.y
+      for (const wc of whaleCells) {
+        const worldX =
+          originX +
+          wc.lx * CELL_PITCH +
+          CELL_PITCH / 2 +
+          (reducedMotion ? 0 : sway(wc.lx, seconds))
+        const worldY = originY + wc.ly * CELL_PITCH + CELL_PITCH / 2
+        const dx = worldX - mouse.x
+        const dy = worldY - mouse.y
         const dist = Math.hypot(dx, dy)
         const boost =
           dist < MOUSE_RADIUS ? smooth(1 - dist / MOUSE_RADIUS) : 0
-        // Undulation travels tail -> head so the whale feels alive.
-        const shimmer = reducedMotion
-          ? 0
-          : 0.14 * Math.sin(seconds * 1.6 - lx * 0.28 + ly * 0.12)
-        const alpha = Math.min(1, 0.55 + shimmer + boost * 0.45)
+        const alpha = Math.min(1, 0.55 + boost * 0.45)
         const size = CELL_SIZE + boost * 3
         ctx.globalAlpha = alpha
-        ctx.fillRect(cell.x - size / 2, cell.y - size / 2, size, size)
+        ctx.fillRect(
+          worldX - size / 2,
+          worldY - size / 2,
+          size,
+          size
+        )
       }
       ctx.globalAlpha = 1
 
