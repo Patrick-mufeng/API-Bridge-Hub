@@ -16,50 +16,27 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Link } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
-
-import { Skeleton } from '@/components/ui/skeleton'
-import { useSystemConfig } from '@/hooks/use-system-config'
-
-import { DeepSeekGrid } from './components/deepseek-grid'
+import { ParticleText } from './components/particle-text'
+import { TerminalBackdrop } from './components/terminal-backdrop'
 
 type AuthLayoutProps = {
   children: React.ReactNode
 }
 
 export function AuthLayout({ children }: AuthLayoutProps) {
-  const { t } = useTranslation()
-  const { systemName, logo, loading } = useSystemConfig()
-
   return (
     <div className='relative grid h-svh max-w-none overflow-hidden bg-black'>
-      {/* Interactive DeepSeek grid backdrop */}
-      <DeepSeekGrid className='absolute inset-0' />
+      {/* Ambient terminal: what BridgeHub does, typing forever, dimmed */}
+      <TerminalBackdrop className='absolute inset-0 opacity-60' />
 
-      <Link
-        to='/'
-        className='absolute top-4 left-4 z-10 flex items-center gap-2 transition-opacity hover:opacity-80 sm:top-8 sm:left-8'
-      >
-        <div className='relative h-8 w-8'>
-          {loading ? (
-            <Skeleton className='absolute inset-0 rounded-full' />
-          ) : (
-            <img
-              src={logo}
-              alt={t('Logo')}
-              className='bg-card/60 h-8 w-8 rounded-full object-cover backdrop-blur-sm'
-            />
-          )}
+      <div className='relative z-10 flex h-full flex-col items-center'>
+        {/* Particle wordmark — scatters around the pointer, then regroups */}
+        <div className='mt-[9vh] h-[23vh] w-full max-w-5xl px-6'>
+          <ParticleText text='Bridge-Hub' className='h-full w-full' />
         </div>
-        {loading ? (
-          <Skeleton className='h-6 w-24' />
-        ) : (
-          <h1 className='text-foreground text-xl font-medium'>{systemName}</h1>
-        )}
-      </Link>
-      <div className='container relative z-10 flex items-center pt-16 sm:pt-0'>
-        <div className='border-border/60 bg-card/70 mx-auto flex w-full flex-col justify-center space-y-2 rounded-2xl border px-4 py-8 shadow-2xl shadow-black/10 backdrop-blur-xl sm:w-[480px] sm:p-8 dark:shadow-black/40'>
+
+        {/* Glass sign-in card, sitting below the wordmark */}
+        <div className='border-border/50 bg-card/60 mx-auto mt-10 flex w-full flex-col justify-center space-y-2 rounded-2xl border px-4 py-8 shadow-2xl shadow-black/60 backdrop-blur-xl sm:w-[460px] sm:p-8'>
           {children}
         </div>
       </div>
