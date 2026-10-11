@@ -1,0 +1,35 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="badge" x1="64" y1="48" x2="448" y2="464" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2563EB"/>
+      <stop offset="0.55" stop-color="#0EA5E9"/>
+      <stop offset="1" stop-color="#06B6D4"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="64" y1="48" x2="448" y2="464" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="0.4" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- badge -->
+  <rect x="24" y="24" width="464" height="464" rx="116" fill="url(#badge)"/>
+  <rect x="24" y="24" width="464" height="464" rx="116" fill="url(#sheen)"/>
+
+  <!-- water dashes -->
+  <path d="M140 396H212" stroke="#FFFFFF" stroke-opacity="0.4" stroke-width="20" stroke-linecap="round"/>
+  <path d="M300 396H372" stroke="#FFFFFF" stroke-opacity="0.4" stroke-width="20" stroke-linecap="round"/>
+
+  <!-- deck -->
+  <path d="M92 336H420" stroke="#FFFFFF" stroke-width="28" stroke-linecap="round"/>
+
+  <!-- towers -->
+  <path d="M170 192V336" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round"/>
+  <path d="M342 192V336" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round"/>
+
+  <!-- main cable -->
+  <path d="M96 336C126 220 148 192 170 192C214 192 226 284 256 284C286 284 298 192 342 192C366 192 388 220 416 336" stroke="#FFFFFF" stroke-width="16" stroke-linecap="round"/>
+
+  <!-- hub node at the cable midpoint -->
+  <circle cx="256" cy="284" r="36" fill="#FFFFFF"/>
+  <circle cx="256" cy="284" r="16" fill="#0284C7"/>
+</svg>

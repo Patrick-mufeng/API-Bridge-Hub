@@ -1,0 +1,94 @@
+<div class="tab-page" data-page="settings">
+<div class="panel-grid cols-2">
+<div class="panel-card">
+  <div class="section-head"><div class="section-title">多账号轮询</div></div>
+  <div class="switch-row">
+    <div class="switch-text"><strong>启用轮询</strong><span>每次请求自动切换到下一个有效账号</span></div>
+    <label class="switch" title="启用轮询">
+      <input type="checkbox" id="poll-toggle" @@poll_checked@@ onchange="markPollingDirty()" aria-label="启用轮询"><span class="track"></span>
+    </label>
+  </div>
+  <div class="switch-row">
+    <div class="switch-text"><strong>轮询模式</strong></div>
+    <div class="segmented" role="radiogroup" aria-label="轮询模式">
+      <label><input type="radio" name="poll-mode" value="round-robin" onchange="markPollingDirty()" @@poll_mode_rr@@><span>顺序轮询</span></label>
+      <label><input type="radio" name="poll-mode" value="credit-priority" onchange="markPollingDirty()" @@poll_mode_cp@@><span>积分优先</span></label>
+    </div>
+  </div>
+  <p id="poll-status" class="field-note">当前账号数: @@POLL_ACCOUNT_COUNT@@，轮询: @@POLL_ONOFF@@</p>
+  <div class="btn-group">
+    <button class="btn btn-primary btn-sm" id="poll-save-btn" onclick="savePollingSettings()" disabled><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>保存轮询设置</button>
+  </div>
+  <div id="poll-msg" class="msg" role="status" aria-live="polite"></div>
+</div>
+<div class="panel-card">
+  <div class="section-head"><div class="section-title">上游端点</div></div>
+  <div class="form-group">
+    <label for="settings-endpoint-preset">预设端点</label>
+    <select id="settings-endpoint-preset" onchange="applyEndpointPreset()">
+      @@endpoint_options_html@@
+    </select>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label for="settings-web">自定义 Web Base URL</label>
+    <input id="settings-web" class="mono-input" value="@@SETTINGS_WEB_ESC@@" placeholder="https://trae-api-cn.mchost.guru/api/remote/v1" oninput="markEndpointDirty()">
+    </div>
+  </div>
+  <div class="btn-group">
+    <button class="btn btn-primary btn-sm" id="settings-save-btn" onclick="saveSettings()" disabled><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>保存设置</button>
+  </div>
+  <div id="settings-msg" class="msg"></div>
+</div>
+<div class="panel-card" id="relay-service-panel">
+  <div class="section-head"><div class="section-title">Relay 服务</div></div>
+  <div class="form-group">
+    <label for="settings-port">宿主机映射端口（RELAY_PORT）</label>
+      <input id="settings-port" type="number" value="@@settings_port@@" placeholder="8000" min="1" max="65535" oninput="markRelayServiceDirty()">
+  </div>
+  <p class="field-note">这是 Docker 对外发布的宿主机端口，容器内监听端口仍由 PORT 控制。修改后必须同步调整端口映射并重启，否则管理页面和 API 可能无法访问。</p>
+  <div class="btn-group">
+      <button class="btn btn-secondary btn-sm" id="relay-service-save-btn" onclick="saveRelayServiceSettings()" disabled><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>保存服务设置</button>
+  </div>
+  <div id="relay-service-msg" class="msg"></div>
+</div>
+<div class="panel-card" id="auto-route-panel">
+  <div class="section-head">
+    <div class="section-title">自动路由</div>
+    <span id="auto-route-state" class="state-pill@@auto_route_pill@@">@@auto_route_state_text@@</span>
+  </div>
+  <div class="switch-row">
+    <div class="switch-text"><strong>启用自动路由</strong><span>工具调用走 IDE Agent，纯聊天走 Remote，失败回落 Remote；开启后忽略预设端点的模式</span></div>
+    <label class="switch" title="启用自动路由">
+      <input type="checkbox" id="auto-route-toggle" @@auto_route_checked@@ onchange="markAutoRouteDirty()" aria-label="启用自动路由"><span class="track"></span>
+    </label>
+  </div>
+  <div class="btn-group">
+    <button class="btn btn-primary btn-sm" id="auto-route-save-btn" onclick="saveAutoRoute()" disabled><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>保存自动路由</button>
+  </div>
+  <div id="auto-route-msg" class="msg" role="status" aria-live="polite"></div>
+</div>
+<div class="panel-card span-all" id="max-mode-panel">
+  <div class="section-head">
+    <div class="section-title">1M 上下文（Max 模式）</div>
+    <span id="max-mode-state" class="state-pill@@max_pill@@">@@max_state_text@@</span>
+  </div>
+  <div class="switch-row">
+    <div class="switch-text"><strong>启用 Max 模式</strong><span>Remote Agent 会话使用 1M 上下文；带调用端工具的请求走 Work，不使用 Max</span></div>
+    <label class="switch" title="启用 Max 模式">
+      <input type="checkbox" id="max-mode-toggle" @@max_checked@@ onchange="markMaxModeDirty()" aria-label="启用 Max 模式"><span class="track"></span>
+    </label>
+  </div>
+  <div class="form-group">
+    <label for="max-mode-models">生效模型（逗号分隔，留空表示账号中所有支持 Max 的模型）</label>
+    <input id="max-mode-models" value="@@max_models@@" placeholder="glm-5.3, deepseek-v4-pro" oninput="markMaxModeDirty()">
+  </div>
+  <div class="btn-group">
+    <button class="btn btn-primary btn-sm" id="max-mode-save-btn" onclick="saveMaxMode()" disabled><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>保存</button>
+    <button class="btn btn-secondary btn-sm" id="max-mode-detect-btn" onclick="detectMaxModels()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>检测支持的模型</button>
+  </div>
+  <div id="max-mode-models-out" class="max-models" hidden></div>
+  <div id="max-mode-msg" class="msg" role="status" aria-live="polite"></div>
+</div>
+</div>
+</div>

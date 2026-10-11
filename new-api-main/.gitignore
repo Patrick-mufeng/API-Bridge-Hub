@@ -1,0 +1,52 @@
+.idea
+.review
+.vscode
+.zed
+.history
+upload
+*.exe
+*.db
+build
+*.db-journal
+*.db-shm
+*.db-wal
+logs
+web/dist
+web/node_modules
+.env
+one-api
+new-api
+/__debug_bin*
+.DS_Store
+tiktoken_cache
+.eslintcache
+.gocache
+.gomodcache/
+.cache
+.plans
+.claude
+.cursor
+
+electron/node_modules
+electron/dist
+/data/
+.gomodcache/
+.gocache-temp
+.gopath
+.test
+token_estimator_test.go
+skills-lock.json
+.playwright-mcp
+
+# Local-only live probes and scratch test workspaces.
+.local-tests/
+relaykit/relayconvert/chat_responses_live_local_test.go
+service/openaicompat/chat_responses_live_local_test.go
+go.work
+go.work.sum
+
+# ===== BridgeHub 本地新增（提交 GitHub 前审计补充）=====
+# 运行日志（"logs" 规则匹配不到 logs-new-api.log）
+logs-*.log
+# ZCode 验证用临时账号工具（含固定临时密码，仅本地使用）
+/tmp_verify/

@@ -1,0 +1,34 @@
+{
+  "id": "trae",
+  "name": "Trae Free",
+  "description": "字节 Trae CN / SOLO 反代（Remote 会话协议，含网页授权登录与签到）",
+  "enabled": true,
+  "workdir": "trae-free-master",
+  "start": {
+    "command": "python",
+    "args": ["-m", "uvicorn", "src.main:app", "--host", "127.0.0.1", "--port", "8015"]
+  },
+  "port": 8015,
+  "health_path": "/healthz",
+  "panel": {
+    "path": "/web/login",
+    "api_prefix": "/api",
+    "rewrite_prefixes": ["/api", "/console", "/web/login"],
+    "strip_frame_headers": true,
+    "inject_key": false,
+    "inject_key_script": false
+  },
+  "key_source": {
+    "type": "env",
+    "path": ".env",
+    "field": "RELAY_API_KEYS",
+    "index": 0
+  },
+  "channel": {
+    "name": "Trae（反代）",
+    "tag": "reverse-proxy:trae",
+    "group": "default",
+    "model_prefix": "tr:",
+    "priority": 4
+  }
+}

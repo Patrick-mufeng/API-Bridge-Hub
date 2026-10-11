@@ -1,0 +1,28 @@
+# ===== 本地敏感文件（绝不提交）=====
+qd_cookies.txt
+
+# 公开仓库排除：
+# 1) 本地验证工具（含临时密码，仅本机有用）
+_branding/set-options.mjs
+# 2) Qoder-free-main 上游未附带 LICENSE 文件（默认保留所有权利），
+#    如已确认上游仓库允许再分发，删除下一行即可重新纳入
+Qoder-free-main/
+
+# 本地会话/工具数据
+.zcode/
+.claude/
+
+# ===== 依赖与构建产物兜底（各子项目 .gitignore 为主，这里是第二道防线）=====
+node_modules/
+dist/
+__pycache__/
+*.exe
+*.exe~
+
+# ===== 日志兜底 =====
+*.log
+logs/
+
+# ===== 系统杂项 =====
+.DS_Store
+Thumbs.db

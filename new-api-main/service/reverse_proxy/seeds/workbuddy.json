@@ -1,0 +1,45 @@
+{
+  "id": "workbuddy",
+  "name": "WorkBuddy Free",
+  "description": "腾讯 WorkBuddy 反代（CN / global 双域账号池，含签到与面板）",
+  "enabled": true,
+  "workdir": "workbuddy-free-main",
+  "build": {
+    "command": "go",
+    "args": [
+      "build",
+      "-trimpath",
+      "-o",
+      "wb2api.exe",
+      "./cmd/server"
+    ],
+    "skip_if_exists": "wb2api.exe"
+  },
+  "start": {
+    "command": "./wb2api.exe",
+    "args": [
+      "-config",
+      "config.json"
+    ]
+  },
+  "port": 7873,
+  "health_path": "/healthz",
+  "panel": {
+    "path": "/panel/",
+    "api_prefix": "/panel/api/",
+    "strip_frame_headers": true,
+    "inject_key": true
+  },
+  "key_source": {
+    "type": "json",
+    "path": "config.json",
+    "field": "api_key"
+  },
+  "channel": {
+    "name": "WorkBuddy（反代）",
+    "tag": "reverse-proxy:workbuddy",
+    "group": "default",
+    "model_prefix": "wb:",
+    "priority": 10
+  }
+}

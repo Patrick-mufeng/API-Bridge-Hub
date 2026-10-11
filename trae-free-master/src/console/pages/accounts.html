@@ -1,0 +1,102 @@
+<div class="tab-page" data-page="accounts">
+<div class="panel-stack">
+<dl class="stats" aria-label="账号概览">
+  <div class="stat"><dt><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>账号</dt><dd id="stat-total">@@stat_total@@</dd></div>
+  <div class="stat"><dt><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>有效</dt><dd id="stat-valid">@@stat_valid@@</dd></div>
+  <div class="stat"><dt><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></svg>今日已签到</dt><dd id="stat-checked">@@stat_checked@@</dd></div>
+  <div class="stat"><dt><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></svg>剩余通用积分</dt><dd id="stat-credits">@@stat_credits@@</dd></div>
+</dl>
+<section class="panel-card" aria-label="账号列表">
+  <div class="section-head">
+    <div><div class="section-title">账号列表</div><span id="checkin-summary" class="section-meta">@@stat_total@@ 个账号</span><span id="checkin-updated" class="section-meta"></span></div>
+    <div class="toolbar account-toolbar"@@toolbar_hidden@@ aria-live="polite">
+      <span id="checkin-busy" class="busy-indicator" role="status" aria-live="polite">正在处理...</span>
+      <button class="btn btn-secondary btn-sm" id="checkin-status-refresh-btn" onclick="checkinRefreshAll()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>查询签到状态</button>
+      <button class="btn btn-secondary btn-sm" id="credits-refresh-btn" onclick="creditsRefreshAll()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></svg>查询全部积分</button>
+      <button class="btn btn-primary btn-sm" id="checkin-claim-btn" onclick="checkinClaimAll()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>一键轮询签到</button>
+      <button class="btn btn-secondary btn-sm" id="account-model-save-btn" onclick="saveAccountModelSettings()" disabled><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>保存模型开关</button>
+    </div>
+  </div>
+  @@accounts_html@@
+  <div class="account-msgs">
+    <div id="account-msg" class="msg" role="status" aria-live="polite"></div>
+    <div id="checkin-msg" class="msg" role="status" aria-live="polite"></div>
+  </div>
+</section>
+<div class="panel-grid cols-2">
+<section class="panel-card login-panel" aria-labelledby="login-title">
+  <div class="section-head">
+    <div class="section-title" id="login-title">授权登录</div>
+    <span id="listener-state" class="state-pill">检测中</span>
+  </div>
+  <ol class="login-steps">
+    <li>点击下方按钮，relay 会在自身进程内启动本机回调监听（<code>127.0.0.1:@@listener_port@@</code>）。</li>
+    <li>浏览器弹出 Trae 授权页，确认后自动回调到 relay。</li>
+    <li>凭证直接写入服务器并刷新账号列表。<b>无需下载或运行任何脚本。</b></li>
+  </ol>
+  <div class="btn-group">
+    <button class="btn btn-primary" onclick="startAuth()" id="auth-btn">@@LOGIN_ICON@@使用 Trae 网页授权登录</button>
+    <a class="icon-btn" href="https://www.trae.cn" target="_blank" rel="noopener" title="访问 trae.cn" aria-label="访问 trae.cn">@@EXT_ICON@@</a>
+  </div>
+  <div id="loading" class="loading">等待授权中...</div>
+  <div id="auth-msg" class="msg"></div>
+  <details class="manual-add">
+    <summary>手动填写凭证添加账号</summary>
+    <form id="manual-form" class="manual-grid">
+      <div class="form-group span-all">
+        <label for="manual-token">Token（Cloud-IDE-JWT）<span class="required">*</span></label>
+        <textarea id="manual-token" name="token" required placeholder="eyJhbGciOiJSUzI1NiI6Ik9wZW5TU0..."></textarea>
+      </div>
+      <div class="form-group">
+        <label for="manual-refresh">Refresh Token</label>
+        <input id="manual-refresh" name="refreshToken" placeholder="可选">
+      </div>
+      <div class="form-group">
+        <label for="manual-uid">User ID</label>
+        <input id="manual-uid" name="userId" placeholder="可选">
+      </div>
+      <div class="form-group">
+        <label for="manual-cid">Client ID</label>
+        <input id="manual-cid" name="clientId" value="@@CLIENT_ID_ESC@@">
+      </div>
+      <div class="form-group">
+        <label for="manual-label">备注</label>
+        <input id="manual-label" name="label" placeholder="可选">
+      </div>
+      <div class="span-all manual-submit">
+        <button type="submit" class="btn btn-primary btn-sm">添加账号</button>
+        <div id="manual-msg" class="msg"></div>
+      </div>
+    </form>
+  </details>
+</section>
+<section class="panel-card" id="auto-checkin-panel" aria-labelledby="auto-checkin-title">
+  <div class="section-head">
+    <div class="section-title" id="auto-checkin-title">自动签到</div>
+    <span id="auto-checkin-state" class="state-pill@@auto_checkin_pill@@">@@auto_checkin_state_text@@</span>
+  </div>
+  <div class="switch-row">
+    <div class="switch-text"><strong>定时签到</strong><span>每天按设定时间依次签到所有账号，已签到账号自动跳过</span></div>
+    <label class="switch" title="启用定时签到">
+      <input type="checkbox" id="auto-checkin-toggle" @@auto_checkin_checked@@ onchange="markAutoCheckinDirty()" aria-label="启用定时签到"><span class="track"></span>
+    </label>
+  </div>
+  <div class="schedule-row">
+    <label class="time-field" for="auto-checkin-time">每天（北京时间）
+      <input class="control" type="time" id="auto-checkin-time" value="@@auto_checkin_time@@" step="60" required oninput="markAutoCheckinDirty()">
+    </label>
+    <div class="toolbar">
+      <button class="btn btn-primary btn-sm" id="auto-checkin-save-btn" onclick="saveAutoCheckin()" disabled><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>保存</button>
+      <button class="btn btn-secondary btn-sm" id="auto-checkin-run-btn" onclick="runAutoCheckinNow()" title="立即按顺序签到所有未签到账号，已签到账号自动跳过"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>立即执行</button>
+    </div>
+  </div>
+  <dl class="schedule-status">
+    <div><dt>下次执行</dt><dd id="auto-checkin-next">-</dd></div>
+    <div><dt>上次执行</dt><dd id="auto-checkin-last">-</dd></div>
+    <div><dt>上次结果</dt><dd id="auto-checkin-result">-</dd></div>
+  </dl>
+  <div id="auto-checkin-msg" class="msg" role="status" aria-live="polite"></div>
+</section>
+</div>
+</div>
+</div>

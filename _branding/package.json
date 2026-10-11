@@ -1,0 +1,17 @@
+{
+  "name": "_branding",
+  "private": true,
+  "scripts": {
+    "typecheck": "bun check"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^7"
+  },
+  "dependencies": {
+    "png-to-ico": "^3.0.2",
+    "sharp": "^0.35.5"
+  }
+}

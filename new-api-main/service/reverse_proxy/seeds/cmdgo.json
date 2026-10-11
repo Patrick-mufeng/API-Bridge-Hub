@@ -1,0 +1,38 @@
+{
+  "id": "cmdgo",
+  "name": "CmdGo Bridge",
+  "description": "Command Code Go 套餐桥接（/alpha/generate CLI 网关 → OpenAI 兼容，含 OAuth 账号池）",
+  "enabled": true,
+  "workdir": "cmdgo-bridge-main",
+  "build": {
+    "command": "npm",
+    "args": ["run", "build"],
+    "skip_if_exists": "dist/index.js"
+  },
+  "start": {
+    "command": "node",
+    "args": ["dist/index.js", "--port", "11445"]
+  },
+  "port": 11445,
+  "health_path": "/health",
+  "panel": {
+    "path": "/",
+    "api_prefix": "/api",
+    "rewrite_prefixes": ["/api"],
+    "strip_frame_headers": true,
+    "inject_key": false,
+    "inject_key_script": false
+  },
+  "key_source": {
+    "type": "json",
+    "path": "C:\\Users\\27540\\.cmdgo-bridge\\config.json",
+    "field": "apiKey"
+  },
+  "channel": {
+    "name": "CmdGo（反代）",
+    "tag": "reverse-proxy:cmdgo",
+    "group": "default",
+    "model_prefix": "cg:",
+    "priority": 7
+  }
+}

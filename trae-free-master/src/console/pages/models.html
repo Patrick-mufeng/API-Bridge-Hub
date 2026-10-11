@@ -1,0 +1,81 @@
+<div class="tab-page" data-page="models">
+<div class="panel-grid">
+<div class="panel-card" id="conn-panel">
+  <div class="section-head">
+    <div class="section-title">模型连通性测试</div>
+    <span id="conn-summary" class="section-meta">未运行</span>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label for="conn-models">测试模型（逗号或换行分隔，留空使用常用模型）</label>
+      <textarea id="conn-models" rows="2" placeholder="glm-5.3, DeepSeek-V4-Pro-Official"></textarea>
+    </div>
+    <div class="form-group">
+      <label for="conn-endpoint">指定上游（测试期间禁止跨端点回落）</label>
+    <select id="conn-endpoint">
+        <option value="auto-route">自动路由（工具 IDE Agent / 聊天 Remote）</option>
+        <option value="remote">Remote / chat_sessions</option>
+        <option value="ide">IDE Agent / llm_utils_chat</option>
+        <option value="solo">Solo / api/agent/v3/llm_utils_chat</option>
+        <option value="work-agent">Work Agent / solo_work_remote</option>
+      </select>
+    </div>
+  </div>
+  <div class="form-group">
+    <span class="field-label">测试内容</span>
+    <div class="option-row">
+      <label class="inline-check"><input type="checkbox" id="conn-mode-text" checked> 文本回复</label>
+      <label class="inline-check"><input type="checkbox" id="conn-mode-tool"> 工具调用</label>
+      <label class="inline-check"><input type="checkbox" id="conn-thinking"> 返回思考内容</label>
+      <label class="inline-check" title="请求 1M Max 上下文，结果中显示是否实际生效"><input type="checkbox" id="conn-max"> 1M Max</label>
+      <label class="inline-check inline-field">思考强度
+        <select id="conn-effort" title="映射到 Trae custom_model.reasoning_effort：low=light，medium/high=high，xhigh=extra_high，超出模型支持的档位会向下取">
+          <option value="">默认</option>
+          <option value="low">low / 轻</option>
+          <option value="medium">medium / 高</option>
+          <option value="high">high / 高</option>
+          <option value="xhigh">xhigh / 极高</option>
+        </select>
+      </label>
+      <label class="inline-check inline-field">超时(秒) <input type="number" id="conn-timeout" value="120" min="10" max="600"></label>
+    </div>
+  </div>
+  <div class="btn-group">
+    <button class="btn btn-primary btn-sm" id="conn-run-btn" onclick="runConnTest()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>开始测试</button>
+    <button class="btn btn-secondary btn-sm" onclick="fillConnPreset()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 12H3"/><path d="M16 6H3"/><path d="M16 18H3"/><path d="M18 9v6"/><path d="M21 12h-6"/></svg>填入常用模型</button>
+  </div>
+  <p id="conn-empty" class="empty-hint">尚未运行测试。填写模型后点「开始测试」，结果会逐条出现在这里。</p>
+  <div class="conn-wrap" id="conn-table" hidden>
+    <table class="conn-table">
+      <thead><tr><th>模型</th><th>类型</th><th>结果</th><th>耗时</th><th>详情</th></tr></thead>
+      <tbody id="conn-tbody"></tbody>
+    </table>
+  </div>
+  <div id="conn-msg" class="msg"></div>
+</div>
+<div class="panel-card">
+  <div class="section-head">
+    <div class="section-title">模型列表</div>
+    <button class="btn btn-secondary btn-sm" onclick="refreshModels()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>获取模型列表</button>
+  </div>
+  <p class="section-desc">从当前账号的上游实时读取：上下文窗口、积分倍率、能力与思考档位。</p>
+  <div class="models-toolbar">
+    <input id="models-filter" type="search" placeholder="筛选名称 / 提供商…" aria-label="筛选模型" oninput="filterModels()">
+    <span id="models-summary" class="section-meta"></span>
+  </div>
+  <p id="models-empty" class="empty-hint">点右上角「获取模型列表」从当前账号的上游读取可用模型。</p>
+  <div class="table-wrap models-wrap" id="models-table-wrap" hidden>
+    <table class="models-table">
+      <thead><tr>
+        <th>模型</th><th>来源</th><th>上下文</th>
+        <th class="numeric">积分倍率</th><th>能力</th><th>思考档位</th>
+      </tr></thead>
+      <tbody id="models-tbody"></tbody>
+    </table>
+  </div>
+  <div id="models-msg" class="msg"></div>
+</div>
+</div>
+</div>
+
+</div>

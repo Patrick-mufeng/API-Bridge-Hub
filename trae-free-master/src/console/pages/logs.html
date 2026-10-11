@@ -1,0 +1,25 @@
+<div class="tab-page" data-page="logs">
+<div class="panel-stack">
+<div class="panel-card logs-wrap">
+  <div class="section-head">
+    <div><div class="section-title">运行日志</div><span id="logs-updated" class="section-meta"></span></div>
+    <div class="toolbar">
+      <div class="chips" role="group" aria-label="日志频道筛选">
+        <button class="chip on" data-log-channel="all" onclick="setLogChannel('all')">全部</button>
+        <button class="chip" data-log-channel="chat" onclick="setLogChannel('chat')">对话</button>
+        <button class="chip" data-log-channel="task" onclick="setLogChannel('task')">任务</button>
+        <button class="chip" data-log-channel="sys" onclick="setLogChannel('sys')">系统</button>
+      </div>
+      <button class="btn btn-secondary btn-sm" id="logs-follow-btn" onclick="toggleLogFollow()">暂停跟随</button>
+      <button class="btn btn-secondary btn-sm" onclick="loadLogs()">刷新</button>
+    </div>
+  </div>
+  <div class="logs-toolbar">
+    <span class="field-note" style="margin:0">进程内环形缓冲，最多保留最近 500 条；重启后清空。</span>
+    <span id="logs-count" class="logs-count">0 条</span>
+  </div>
+  <div id="logs-body" class="logs-body" role="log" aria-live="polite" aria-relevant="additions"></div>
+  <div id="logs-empty" class="logs-empty">暂无日志</div>
+</div>
+</div>
+</div>

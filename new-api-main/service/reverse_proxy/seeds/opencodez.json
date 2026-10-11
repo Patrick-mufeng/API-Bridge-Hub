@@ -1,0 +1,34 @@
+{
+  "id": "opencodez",
+  "name": "OpenCode Zen Free",
+  "description": "OpenCode Zen 匿名免费通道反代（无需注册账号）",
+  "enabled": true,
+  "workdir": "opencodez-free-main",
+  "start": {
+    "command": "node",
+    "args": [
+      "src/index.ts",
+      "--port",
+      "8962"
+    ]
+  },
+  "port": 8962,
+  "health_path": "/healthz",
+  "panel": {
+    "path": "/panel/",
+    "api_prefix": "/panel/api/",
+    "strip_frame_headers": true,
+    "inject_key": false
+  },
+  "key_source": {
+    "type": "text",
+    "path": "C:\\Users\\27540\\.opencodez-free\\agent-key.txt"
+  },
+  "channel": {
+    "name": "OpenCode Zen（反代）",
+    "tag": "reverse-proxy:opencodez",
+    "group": "default",
+    "model_prefix": "ocz:",
+    "priority": 5
+  }
+}

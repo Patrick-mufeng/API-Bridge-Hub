@@ -1,0 +1,42 @@
+{
+  "id": "cline",
+  "name": "Cline Free",
+  "description": "Cline（cline.bot）反代，兼容 OpenAI 与 Anthropic 协议",
+  "enabled": true,
+  "workdir": "cline-free-main",
+  "start": {
+    "command": "node",
+    "args": [
+      "local-server.js"
+    ]
+  },
+  "port": 8972,
+  "health_path": "/v1/health",
+  "panel": {
+    "path": "/",
+    "api_prefix": "/v1/",
+    "rewrite_prefixes": [
+      "/v1/"
+    ],
+    "strip_frame_headers": true,
+    "inject_key": true,
+    "inject_key_script": true,
+    "key_script_global": "__CLINE2API__"
+  },
+  "key_source": {
+    "type": "env",
+    "path": ".env.local",
+    "field": "API_KEY"
+  },
+  "channel": {
+    "name": "Cline（反代）",
+    "tag": "reverse-proxy:cline",
+    "group": "default",
+    "model_prefix": "cl:",
+    "priority": 6
+  },
+  "env": {
+    "PORT": "8972",
+    "HOST": "127.0.0.1"
+  }
+}

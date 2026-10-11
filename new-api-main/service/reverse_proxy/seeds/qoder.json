@@ -1,0 +1,36 @@
+{
+  "id": "qoder",
+  "name": "Qoder Free",
+  "description": "阿里 Qoder 反代（国内版 / 国际版，每账号独立 Node worker）",
+  "enabled": true,
+  "workdir": "Qoder-free-main",
+  "build": {
+    "command": "go",
+    "args": ["build", "-o", "bin/qoder-free.exe", "./cmd/server"],
+    "skip_if_exists": "bin/qoder-free.exe"
+  },
+  "start": {
+    "command": "./bin/qoder-free.exe",
+    "args": []
+  },
+  "port": 8220,
+  "health_path": "/healthz",
+  "panel": {
+    "path": "/panel/",
+    "api_prefix": "/panel/api/",
+    "strip_frame_headers": true,
+    "inject_key": false
+  },
+  "key_source": {
+    "type": "json",
+    "path": "config.json",
+    "field": "api_key"
+  },
+  "channel": {
+    "name": "Qoder（反代）",
+    "tag": "reverse-proxy:qoder",
+    "group": "default",
+    "model_prefix": "qd:",
+    "priority": 8
+  }
+}

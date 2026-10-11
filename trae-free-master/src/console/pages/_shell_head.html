@@ -1,0 +1,54 @@
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>trae-free 控制台</title>
+@@FAVICON@@
+<script>
+(function(){
+  try {
+    var t = localStorage.getItem('relay-theme');
+    if (t !== 'dark' && t !== 'light') t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', t);
+  } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+})();
+</script>
+<link rel="stylesheet" href="/console/console.css?v=@@ASSET_REVISION@@">
+</head>
+<body>
+<div id="toast" class="toast" role="alert" aria-live="assertive"><span id="toast-title" class="toast-title"></span><span id="toast-text"></span></div>
+<div class="app">
+<aside class="sidebar">
+  <div class="brand">
+    <span class="brand-mark">@@LOGO@@</span>
+    <div class="brand-block">
+      <h1>trae-free</h1>
+      <span class="brand-sub">控制台</span>
+    </div>
+  </div>
+  <nav class="nav-list" role="tablist" aria-label="功能导航">
+    <button class="nav-item active" role="tab" data-tab="overview" data-title="概览" onclick="switchTab('overview')"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg><span>概览</span></button>
+    <button class="nav-item" role="tab" data-tab="accounts" data-title="账号池" onclick="switchTab('accounts')"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>账号池</span></button>
+    <button class="nav-item" role="tab" data-tab="usage" data-title="用量统计" onclick="switchTab('usage')"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 7V5a1 1 0 0 0-1-1H6.5a.5.5 0 0 0-.4.8l4.5 6a2 2 0 0 1 0 2.4l-4.5 6a.5.5 0 0 0 .4.8H17a1 1 0 0 0 1-1v-2"/></svg><span>用量统计</span></button>
+    <button class="nav-item" role="tab" data-tab="logs" data-title="运行日志" onclick="switchTab('logs')"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg><span>运行日志</span></button>
+    <button class="nav-item" role="tab" data-tab="models" data-title="模型与档位" onclick="switchTab('models')"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg><span>模型与档位</span></button>
+    <button class="nav-item" role="tab" data-tab="settings" data-title="配置" onclick="switchTab('settings')"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg><span>配置</span></button>
+  </nav>
+  <div class="sidebar-foot"><span>trae-free</span><span>v@@APP_VERSION@@</span></div>
+</aside>
+<main class="main">
+<header class="topbar">
+  <h2 id="page-title">概览</h2>
+  <div class="topbar-right">
+    @@status_html@@
+    <label class="theme-switch" title="夜间模式">
+      <span class="theme-icon theme-sun"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg></span>
+      <span class="switch"><input type="checkbox" id="theme-toggle" role="switch" aria-label="夜间模式" onchange="applyTheme(this.checked?'dark':'light',true)"><span class="track"></span></span>
+      <span class="theme-icon theme-moon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></span>
+    </label>
+    @@logout_btn@@
+  </div>
+</header>
+<div class="content">
+

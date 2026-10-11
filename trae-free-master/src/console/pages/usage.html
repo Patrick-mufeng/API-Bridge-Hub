@@ -1,0 +1,26 @@
+<div class="tab-page" data-page="usage">
+<div class="panel-grid">
+<div class="panel-card" id="usage-chart-panel">
+  <div class="section-head">
+    <div><div class="section-title">每日用量</div><span id="usage-chart-meta" class="section-meta"></span></div>
+    <div class="segmented" role="radiogroup" aria-label="统计范围">
+      <label><input type="radio" name="usage-range" value="7" onchange="setUsageRange(this.value)"><span>7 天</span></label>
+      <label><input type="radio" name="usage-range" value="14" onchange="setUsageRange(this.value)" checked><span>14 天</span></label>
+      <label><input type="radio" name="usage-range" value="30" onchange="setUsageRange(this.value)"><span>30 天</span></label>
+    </div>
+  </div>
+  <div id="usage-chart-readout" class="chart-readout" aria-live="polite"></div>
+  <div class="chart-wrap" id="usage-chart-wrap">
+    <div class="chart-y" aria-hidden="true"><span id="usage-y-max">0</span><span id="usage-y-mid">0</span><span>0</span></div>
+    <div id="usage-chart" class="chart" role="group" aria-label="每日 Token 柱状图"></div>
+    <div id="usage-chart-axis" class="chart-axis" aria-hidden="true"></div>
+  </div>
+  <p id="usage-chart-empty" class="empty-hint" hidden>所选范围内没有用量记录。</p>
+</div>
+<div class="panel-card" id="usage-panel">
+  <div class="section-head"><div class="section-title">消费记录</div><span id="usage-updated" class="section-meta"></span></div>
+  <div id="usage-msg" class="msg" role="status" aria-live="polite"></div>
+  @@usage_records_html@@
+</div>
+</div>
+</div>

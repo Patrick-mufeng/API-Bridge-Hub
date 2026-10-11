@@ -1,0 +1,8 @@
+# Keep the production build context reproducible and free of credentials,
+# account state, probes, reverse-engineering artifacts, and old release files.
+**
+!Dockerfile
+!.dockerignore
+!requirements.txt
+!src/
+!src/**

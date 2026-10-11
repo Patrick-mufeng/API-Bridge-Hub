@@ -1,0 +1,55 @@
+Pre-existing test failures in the workspace copy, captured before any rewrite work.
+Command: python -m unittest discover -s tests -t . -q
+Result: Ran 705 tests, 36 failures + 4 errors (40 problems).
+
+ROOT CAUSE (corrected): this command does not load tests/conftest.py, which is
+pytest-only. conftest is what redirects the account store to a temporary
+directory and clears RELAY_API_KEYS. Without it, src.main imports the
+developer's working-tree .env, API_KEYS becomes the real key, and every
+unauthenticated API request returns 401 instead of the expected 200/400.
+Verified: with conftest preloaded the same suite is green.
+
+So these failures are an artifact of the runner, not CLI-subprocess or
+model-probe environment problems. Run the suite under pytest, or preload
+tests.conftest, to get a meaningful result.
+
+This is the comparison baseline: the rewrite must not add any failure beyond these.
+
+ERROR: test_max_mode_enriches_slim_account_config
+ERROR: test_model_test_endpoint_reports_text_and_tool_probes
+ERROR: test_model_test_endpoint_surfaces_failures
+ERROR: test_model_test_forwards_reasoning_effort_and_thinking
+FAIL: test_auto_plain_chat_uses_only_raw
+FAIL: test_auto_tools_do_not_fall_back_when_raw_fails
+FAIL: test_auto_tools_never_fall_back_to_web_or_ide_after_failures
+FAIL: test_chat_accepts_flat_responses_tool_shape
+FAIL: test_chat_and_responses_return_503_when_all_accounts_disabled
+FAIL: test_chat_nonstream
+FAIL: test_chat_parts_and_string_messages_are_not_dropped
+FAIL: test_chat_prompt_alias_is_forwarded
+FAIL: test_chat_stream
+FAIL: test_chat_tools_are_forwarded_and_returned
+FAIL: test_chat_tools_auto_discover_client_environment_and_plugins
+FAIL: test_conflicting_session_aliases_are_rejected
+FAIL: test_empty_body_is_reported_without_dispatching_upstream
+FAIL: test_empty_tools_and_none_choice_still_use_only_safe_routes
+FAIL: test_get_v1_models
+FAIL: test_gzip_chat_body_is_decoded_and_forwarded
+FAIL: test_ide_mode_accepts_caller_owned_tools
+FAIL: test_malformed_tools_are_rejected_before_upstream_routing
+FAIL: test_manual_model_requests_max_mode_fields_when_enabled
+FAIL: test_model_test_returns_endpoint_fallback_diagnostics
+FAIL: test_model_test_trace_keeps_explicit_ide_and_work_endpoint
+FAIL: test_raw_nonstream_does_not_replay_completed_tool_repeat
+FAIL: test_raw_nonstream_does_not_retry_empty_turn_after_usage
+FAIL: test_raw_nonstream_retries_empty_turn_once
+FAIL: test_raw_nonstream_second_incomplete_attempt_never_opens_third_request
+FAIL: test_raw_stream_retries_empty_turn_without_leaking_placeholder
+FAIL: test_raw_stream_returns_openai_tool_call_deltas
+FAIL: test_raw_stream_stops_after_one_empty_retry
+FAIL: test_responses_bare_input_text_item_reaches_dispatch
+FAIL: test_tool_choice_must_reference_a_declared_tool
+FAIL: test_tool_result_continuation_without_tools_stays_on_safe_routes
+FAIL: test_two_turn_tool_loop_through_real_cli_subprocess
+FAIL: test_web_mode_accepts_caller_owned_tools
+FAIL: test_web_mode_accepts_empty_tool_policy

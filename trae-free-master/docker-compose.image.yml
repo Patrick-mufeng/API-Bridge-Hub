@@ -1,0 +1,13 @@
+services:
+  trae-free:
+    image: ghcr.io/patrick-mufeng/trae-free:latest
+    container_name: trae-free
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: true
+    ports:
+      - "${RELAY_PORT:-8015}:${PORT:-8015}"
+    volumes:
+      - ./.env:/app/.env
+      - ./data:/app/data
