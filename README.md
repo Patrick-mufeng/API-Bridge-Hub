@@ -51,6 +51,10 @@ API-Bridge-Hub/
 
 ## 快速开始（主站）
 
+**Windows 一键启动**：双击根目录 `start.bat`——缺失时自动补建前端与二进制，启动主站并打开浏览器，已启用的反代服务随主站自动拉起（Git Bash / Linux 用 `./start.sh`）。
+
+手动方式如下：
+
 ```bash
 # 1. 构建前端
 cd new-api-main/web
@@ -91,6 +95,8 @@ cp .env.example .env      # 至少设置 PORT（默认 3000），建议自设 SE
 > ※ **Qoder-free-main 未随本仓库分发**：上游未附带 LICENSE 文件。如需使用请自行获取源码，放入本目录即可。
 
 服务跑起来后，在「反代服务」面板点「注册渠道」，主站会自动读取其 `/v1/models` 并以渠道前缀注册（需该服务已有可用模型——多数免费反代要先登录账号）。
+
+manifest 中 `enabled: true` 的服务会在**主站启动时自动拉起**（首次会按 manifest 的 `build` 段自动编译），也可随时在面板手动启停；不想自动启动的服务把 `enabled` 改为 `false` 即可。
 
 ## Manifest 格式（热插拔的核心）
 

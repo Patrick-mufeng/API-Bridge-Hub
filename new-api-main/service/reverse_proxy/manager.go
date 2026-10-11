@@ -132,6 +132,35 @@ func Init() {
 	for _, e := range errs {
 		logger.LogError(nil, "reverse proxy manager: manifest error: "+e)
 	}
+
+	// Auto-start services whose manifest is enabled, so a host boot brings the
+	// whole hub up (build-on-demand included). They can still be stopped from
+	// the panel as usual.
+	m.mu.RLock()
+	autoIDs := make([]string, 0, count)
+	for id, svc := range m.services {
+		if svc.IsEnabled() {
+			autoIDs = append(autoIDs, id)
+		}
+	}
+	m.mu.RUnlock()
+	sort.Strings(autoIDs)
+	for _, id := range autoIDs {
+		go func(id string) {
+			status, err := m.Start(id)
+			switch {
+			case err == nil:
+				logger.LogInfo(nil, fmt.Sprintf("reverse proxy auto-start: %s started (pid %d)", id, status.PID))
+			case status.Running:
+				logger.LogInfo(nil, fmt.Sprintf("reverse proxy auto-start: %s already running on its port", id))
+			default:
+				logger.LogError(nil, fmt.Sprintf("reverse proxy auto-start: %s failed: %v", id, err))
+			}
+		}(id)
+	}
+	if len(autoIDs) > 0 {
+		logger.LogInfo(nil, fmt.Sprintf("reverse proxy manager: auto-starting %d enabled service(s)", len(autoIDs)))
+	}
 }
 
 // HubRoot is the base directory used to resolve relative workdir values.
@@ -374,7 +403,16 @@ func (m *Manager) Start(id string) (Status, error) {
 		}
 	}()
 	time.Sleep(startSettleDelay)
-	status := m.Probe(svc)
+	// Cold-start runtimes (Python/Node) can take several seconds past the
+	// settle delay to bind their port; re-probe before declaring failure.
+	var status Status
+	for attempt := 0; ; attempt++ {
+		status = m.Probe(svc)
+		if status.Running || attempt >= 4 {
+			break
+		}
+		time.Sleep(startSettleDelay)
+	}
 	if !status.Running {
 		return status, fmt.Errorf("process started but port %d is not listening yet; check %s", svc.Manifest.Port, logPath)
 	}
