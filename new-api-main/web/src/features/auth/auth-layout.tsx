@@ -16,7 +16,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { ParticleText } from './components/particle-text'
 import { TerminalBackdrop } from './components/terminal-backdrop'
 
 type AuthLayoutProps = {
@@ -24,33 +23,54 @@ type AuthLayoutProps = {
 }
 
 /**
- * Split auth layout: the showcase pane (particle wordmark + live terminal)
- * owns the left side on wide screens; the glass sign-in card sits centered
- * in the right pane. Below `lg` it stacks — dim terminal backdrop behind a
- * wordmark and the card.
+ * Auth over a live terminal. The full-bleed typing session IS the page; the
+ * glass card docks on the right (centered on small screens) and answers the
+ * session's final line: "awaiting credentials ...".
+ *
+ * Web glassmorphism approximation (not Apple Liquid Glass): layered
+ * translucent fill, 1px inner highlight, backdrop blur. Solid fallback for
+ * prefers-reduced-transparency.
  */
 export function AuthLayout({ children }: AuthLayoutProps) {
   return (
-    <div className='relative h-svh max-w-none overflow-hidden bg-black'>
-      {/* mobile-only dim terminal backdrop */}
-      <TerminalBackdrop className='absolute inset-0 opacity-30 lg:hidden' />
+    <div className='relative min-h-[100dvh] overflow-hidden bg-zinc-950'>
+      {/* the page IS the terminal */}
+      <TerminalBackdrop className='absolute inset-0 px-6 py-8 opacity-80 sm:px-10 sm:py-10 lg:px-16 lg:py-12' />
 
-      <div className='relative flex h-full flex-col items-center lg:flex-row lg:items-stretch'>
-        {/* showcase pane */}
-        <div className='flex w-full flex-col items-center justify-center px-6 pt-[9vh] lg:w-[55%] lg:items-start lg:border-r lg:border-white/5 lg:px-14 lg:pt-0 xl:px-20'>
-          <div className='relative h-[15vh] w-full max-w-2xl lg:h-[20vh] lg:max-w-none'>
-            <ParticleText text='Bridge-Hub' className='absolute inset-0' />
+      {/* vignette: keeps edges deep, guides the eye to the card */}
+      <div
+        aria-hidden
+        className='pointer-events-none absolute inset-0 bg-[radial-gradient(120%_100%_at_72%_50%,transparent_35%,rgba(0,0,0,0.6)_100%)]'
+      />
+
+      {/* glass auth card, docked right (centered on small screens) */}
+      <div className='relative z-10 flex min-h-[100dvh] items-center justify-center px-6 sm:justify-end sm:px-12 lg:px-24'>
+        <div className='w-full max-w-[400px] rounded-xl border border-white/10 bg-zinc-950/70 p-7 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_24px_70px_rgba(0,0,0,0.55)] backdrop-blur-2xl sm:p-8 auth-card-in'>
+          <div className='mb-7 font-mono text-xs text-zinc-500'>
+            auth@bridgehub:~$ <span className='text-zinc-300'>login</span>
           </div>
-          <TerminalBackdrop className='relative mt-12 hidden w-full max-w-xl lg:block' />
-        </div>
 
-        {/* card pane */}
-        <div className='flex flex-1 items-start justify-center px-6 pt-2 lg:items-center lg:pt-0'>
-          <div className='border-border/50 bg-card/60 mx-auto mt-6 flex w-full flex-col justify-center space-y-2 rounded-2xl border px-4 py-8 shadow-2xl shadow-black/60 backdrop-blur-xl sm:w-[420px] sm:p-8 lg:mt-0'>
-            {children}
+          {children}
+
+          <div className='mt-8 flex items-center gap-2 border-t border-white/5 pt-4 font-mono text-[11px] text-zinc-500'>
+            <span className='relative flex size-1.5'>
+              <span className='absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60' />
+              <span className='relative inline-flex size-1.5 rounded-full bg-emerald-400' />
+            </span>
+            hub online · 6 channels
           </div>
         </div>
       </div>
+
+      <style>{`
+        @media (prefers-reduced-motion: no-preference) {
+          .auth-card-in { animation: auth-card-in 0.5s cubic-bezier(0.23, 1, 0.32, 1) both; }
+          @keyframes auth-card-in {
+            from { opacity: 0; transform: translateY(14px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+        }
+      `}</style>
     </div>
   )
 }
