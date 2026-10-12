@@ -34,8 +34,11 @@ type AuthLayoutProps = {
 export function AuthLayout({ children }: AuthLayoutProps) {
   return (
     <div className='relative min-h-[100dvh] overflow-hidden bg-zinc-950'>
-      {/* the page IS the terminal */}
-      <TerminalBackdrop className='absolute inset-0 px-6 py-8 opacity-80 sm:px-10 sm:py-10 lg:px-16 lg:py-12' />
+      {/* the page IS the terminal, vertically centered so early typing frames
+          distribute whitespace symmetrically */}
+      <div className='absolute inset-0 flex flex-col justify-center'>
+        <TerminalBackdrop className='px-6 opacity-80 sm:px-10 lg:px-16 2xl:px-28' />
+      </div>
 
       {/* vignette: keeps edges deep, guides the eye to the card */}
       <div
@@ -43,9 +46,15 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         className='pointer-events-none absolute inset-0 bg-[radial-gradient(120%_100%_at_72%_50%,transparent_35%,rgba(0,0,0,0.6)_100%)]'
       />
 
+      {/* faint CRT scanlines: fills the black with texture, zero noise */}
+      <div
+        aria-hidden
+        className='pointer-events-none absolute inset-0 z-[5] bg-[repeating-linear-gradient(0deg,transparent_0px,transparent_2px,rgba(255,255,255,0.04)_3px)]'
+      />
+
       {/* glass auth card, docked right (centered on small screens) */}
-      <div className='relative z-10 flex min-h-[100dvh] items-center justify-center px-6 sm:justify-end sm:px-12 lg:px-24'>
-        <div className='w-full max-w-[400px] rounded-xl border border-white/10 bg-zinc-950/70 p-7 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_24px_70px_rgba(0,0,0,0.55)] backdrop-blur-2xl sm:p-8 auth-card-in'>
+      <div className='relative z-10 flex min-h-[100dvh] items-center justify-center px-6 sm:justify-end sm:px-12 lg:px-24 2xl:px-36'>
+        <div className='w-full max-w-[400px] rounded-xl border border-white/10 bg-zinc-950/70 p-7 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_24px_70px_rgba(0,0,0,0.55)] backdrop-blur-2xl sm:p-8 2xl:max-w-[440px] auth-card-in'>
           <div className='mb-7 font-mono text-xs text-zinc-500'>
             auth@bridgehub:~$ <span className='text-zinc-300'>login</span>
           </div>
