@@ -1,5 +1,6 @@
 @echo off
 setlocal
+chcp 65001 >nul
 title BridgeHub
 cd /d "%~dp0new-api-main"
 
