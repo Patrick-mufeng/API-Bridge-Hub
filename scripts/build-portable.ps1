@@ -98,13 +98,37 @@ if (-not $SkipBuild) {
     bun run build
     Pop-Location
   }
-  $env:CGO_ENABLED = '0'
-  go build -trimpath -ldflags="-s -w" -o (Join-Path $StageDir 'new-api-dev.exe') .
+
+  # 种子清单通过 //go:embed seeds/*.json 编译进二进制，首次启动时写入 data
+  # 目录 —— 所以光在打包阶段删 data\qoder.json 没用，它会被重新种出来。
+  # 必须在编译前把不随包分发的种子移出 seeds/，编完再放回去。
+  $seedDir = Join-Path $Root 'new-api-main\service\reverse_proxy\seeds'
+  $seedStash = @{}
+  foreach ($exclude in @('qoder.json')) {
+    $src = Join-Path $seedDir $exclude
+    if (Test-Path $src) {
+      $seedStash[$exclude] = [System.IO.File]::ReadAllBytes($src)
+      Remove-Item $src -Force
+      Warn "编译期临时移出种子: $exclude（无 LICENSE，不随包分发）"
+    }
+  }
+
+  try {
+    $env:CGO_ENABLED = '0'
+    go build -trimpath -ldflags="-s -w" -o (Join-Path $StageDir 'new-api-dev.exe') .
+    if ($LASTEXITCODE -ne 0) { throw "go build 失败" }
+    Ok "主站已编译（stripped，已剔除 Qoder 种子）"
+  } finally {
+    # 无论成败都恢复源码树，避免把开发环境改坏
+    foreach ($name in $seedStash.Keys) {
+      [System.IO.File]::WriteAllBytes((Join-Path $seedDir $name), $seedStash[$name])
+      Ok "已恢复源码种子: $name"
+    }
+  }
   Pop-Location
-  Ok "主站已编译（stripped）"
 } else {
   Copy-Item (Join-Path $Root 'new-api-main\new-api-dev.exe') $StageDir -Force
-  Warn "使用现有主站产物（-SkipBuild）"
+  Warn "使用现有主站产物（-SkipBuild）——注意：该产物可能仍内嵌 Qoder 种子"
 }
 
 # 主站配置模板（首次运行由 start.bat 复制为 .env）
@@ -281,12 +305,10 @@ if (-not (Test-Path $cmdgoCfg)) {
   [System.IO.File]::WriteAllText($cmdgoCfg, '{ "apiKey": "" }', (New-Object System.Text.UTF8Encoding $false))
 }
 
-# opencodez 免账号，但 manifest 声明了 key_source，面板读不到文件会报错。
-# 预先放一个占位文本文件，服务首次启动会写入真实 agent key。
-$oczKey = Join-Path $varRoot 'opencodez\agent-key.txt'
-if (-not (Test-Path $oczKey)) {
-  [System.IO.File]::WriteAllText($oczKey, '', (New-Object System.Text.UTF8Encoding $false))
-}
+# opencodez 免账号，密钥由服务在首次启动时自行生成并写入 key_source.path。
+# 关键：绝不能预建空的 agent-key.txt —— 它的 resolveOneKey 是"能读到文件就
+# 用其内容，读不到才生成"，空文件会被当成有效密钥（空串），导致授权永远失败。
+[System.IO.Directory]::CreateDirectory((Join-Path $varRoot 'opencodez')) | Out-Null
 
 # ---------------------------------------------------------------------------
 Step "一致性校验：manifest 与随包目录必须一一对应"
