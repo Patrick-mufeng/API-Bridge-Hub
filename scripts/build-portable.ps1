@@ -223,7 +223,8 @@ if (-not (Test-Path $wbCfgPath)) {
     # 否则所有下载者共用同一个网关密钥。
     $rand = New-Object byte[] 18
     [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($rand)
-    $wbObj.api_key = 'sk-' + [Convert]::ToBase64String($rand).Replace('+','').Replace('/','').Replace('=','').Substring(0,24)
+    $token = [Convert]::ToBase64String($rand) -replace '[+/=]', ''
+    $wbObj.api_key = 'sk-' + $token.Substring(0, [Math]::Min(24, $token.Length))
     $wbOut = ConvertTo-Json -InputObject $wbObj -Depth 12
     [System.IO.File]::WriteAllText($wbCfgPath, $wbOut, (New-Object System.Text.UTF8Encoding $false))
     Ok "workbuddy 配置已对齐（listen :7873，随机 api_key）"
@@ -252,18 +253,18 @@ foreach ($f in Get-ChildItem $dataSrc -Filter *.json) {
     'cmdgo.json' {
       # 数据目录搬到包内 var/，并用 --data-dir 显式指定（默认是 ~/.cmdgo-bridge）
       $json = $json -replace '"args":\s*\[\s*"dist/index\.js",\s*"--port",\s*"11445"\s*\]',
-                          '"args": ["dist/index.js", "--port", "11445", "--data-dir", "../../var/cmdgo"]'
+                          '"args": ["dist/index.js", "--port", "11445", "--data-dir", "../var/cmdgo"]'
       $json = $json -replace '"path":\s*"[^"]*\.cmdgo-bridge\\\\config\.json"',
-                          '"path": "../../var/cmdgo/config.json"'
+                          '"path": "../var/cmdgo/config.json"'
     }
     'opencodez.json' {
       # OPENCODEZ_CONFIG 指向包内配置文件，密钥文件随其解析
       $json = $json -replace '"path":\s*"[^"]*\.opencodez-free\\\\agent-key\.txt"',
-                          '"path": "../../var/opencodez/agent-key.txt"'
+                          '"path": "../var/opencodez/agent-key.txt"'
       # 注入环境变量，让服务把配置目录认到包内
       if ($json -notmatch '"env"') {
         $json = $json -replace '"key_source"',
-                            '"env": { "OPENCODEZ_CONFIG": "../../var/opencodez/config.json" }, "key_source"'
+                            '"env": { "OPENCODEZ_CONFIG": "../var/opencodez/config.json" }, "key_source"'
       }
     }
   }
@@ -279,6 +280,65 @@ $cmdgoCfg = Join-Path $varRoot 'cmdgo\config.json'
 if (-not (Test-Path $cmdgoCfg)) {
   [System.IO.File]::WriteAllText($cmdgoCfg, '{ "apiKey": "" }', (New-Object System.Text.UTF8Encoding $false))
 }
+
+# opencodez 免账号，但 manifest 声明了 key_source，面板读不到文件会报错。
+# 预先放一个占位文本文件，服务首次启动会写入真实 agent key。
+$oczKey = Join-Path $varRoot 'opencodez\agent-key.txt'
+if (-not (Test-Path $oczKey)) {
+  [System.IO.File]::WriteAllText($oczKey, '', (New-Object System.Text.UTF8Encoding $false))
+}
+
+# ---------------------------------------------------------------------------
+Step "一致性校验：manifest 与随包目录必须一一对应"
+
+# 孤儿 manifest（引用了未随包分发的服务）会在面板里永远报"找不到目录"，
+# 这种只有打包环节能拦住：目录和 manifest 都在 stage 里，逐个核对。
+$pairs = @{
+  'workbuddy.json'  = 'workbuddy-free-main'
+  'cline.json'      = 'cline-free-main'
+  'cmdgo.json'      = 'cmdgo-bridge-main'
+  'opencodez.json'  = 'opencodez-free-main'
+  'trae.json'       = 'trae-free-master'
+}
+$problems = @()
+foreach ($mf in Get-ChildItem $dataDst -Filter *.json) {
+  if (-not $pairs.ContainsKey($mf.Name)) {
+    $problems += "孤儿 manifest（无对应目录，应从包中排除）: $($mf.Name)"
+    continue
+  }
+  $dir = Join-Path $StageDir $pairs[$mf.Name]
+  if (-not (Test-Path $dir)) {
+    $problems += "manifest $($mf.Name) 引用的目录缺失: $($pairs[$mf.Name])"
+  }
+}
+foreach ($name in $pairs.Keys) {
+  if (-not (Test-Path (Join-Path $dataDst $name))) {
+    $problems += "目录 $($pairs[$name]) 存在但缺少 manifest: $name"
+  }
+}
+if ($problems.Count -gt 0) {
+  $problems | ForEach-Object { Write-Host "    ! $_" -ForegroundColor Red }
+  throw "manifest/目录 一致性校验失败（见上）"
+}
+Ok "一致性校验通过：5 个服务目录 ↔ 5 份 manifest，无孤儿项"
+
+# 密钥路径校验：manifest 里写的相对路径必须能从 workdir 解析到真实文件。
+# 例外：cline 的 .env.local 首次启动会由它自己的 start.mjs 自动创建（我们
+# 有意不打包 .env* 以避开开发机密钥），所以缺它只提示、不阻断。
+foreach ($name in $pairs.Keys) {
+  $m = [System.IO.File]::ReadAllText((Join-Path $dataDst $name), [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+  if (-not $m.key_source -or -not $m.key_source.path) { continue }
+  if ([System.IO.Path]::IsPathRooted($m.key_source.path)) { continue }
+  $resolved = [System.IO.Path]::GetFullPath((Join-Path (Join-Path $StageDir $pairs[$name]) $m.key_source.path))
+  if (-not (Test-Path $resolved)) {
+    if ($name -eq 'cline.json') {
+      Warn "cline 的 .env.local 未打包（首次启动 start.mjs 会自动创建，属预期）"
+      continue
+    }
+    throw "manifest $name 的 key_source.path 解析不到文件: $resolved"
+  }
+}
+Ok "密钥路径校验通过（相对路径均可解析）"
 
 # 校验：无 BOM、无绝对路径、且每份都能被 JSON 解析器读通
 Get-ChildItem $dataDst -Filter *.json | ForEach-Object {
