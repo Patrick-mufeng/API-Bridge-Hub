@@ -34,11 +34,14 @@ function Warn($msg) { Write-Host "    $msg" -ForegroundColor Yellow }
 
 # ---------------------------------------------------------------------------
 Step "准备目录"
-# stage 里上一轮的 data 目录（含旧 manifest、日志、数据库）必须清掉，
-# 否则会带着上一轮的 qoder.json 等残留一起打包
-Remove-Item -Recurse -Force (Join-Path $StageDir 'new-api-main\data') -ErrorAction SilentlyContinue
-Remove-Item -Recurse -Force (Join-Path $StageDir 'new-api-main\one-api.db*') -ErrorAction SilentlyContinue
-Remove-Item -Recurse -Force (Join-Path $StageDir 'new-api-main\.env') -ErrorAction SilentlyContinue
+# stage 里上一轮的产物必须清干净，否则会带着旧 manifest、旧数据库、
+# 旧密钥、旧日志一起打包。逐个服务目录也要清：robocopy /XD 只排除
+# 已存在目录的复制，不会删除 stage 里的历史残留。
+Remove-Item -Recurse -Force (Join-Path $StageDir 'new-api-main') -ErrorAction SilentlyContinue
+foreach ($svc in @('workbuddy-free-main','cline-free-main','cmdgo-bridge-main','opencodez-free-main','trae-free-master')) {
+  Remove-Item -Recurse -Force (Join-Path $StageDir $svc) -ErrorAction SilentlyContinue
+}
+Remove-Item -Recurse -Force (Join-Path $StageDir 'var') -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $StageDir, $CacheDir | Out-Null
 Ok "stage: $StageDir"
 
@@ -105,11 +108,9 @@ if (-not $SkipBuild) {
 }
 
 # 主站配置模板（首次运行由 start.bat 复制为 .env）
-Copy-Item (Join-Path $Root 'new-api-main\.env.example') (Join-Path $StageDir 'new-api-main\.env.example') -Force -ErrorAction SilentlyContinue
-if (Test-Path (Join-Path $Root 'new-api-main\web\dist')) {
-  New-Item -ItemType Directory -Force -Path (Join-Path $StageDir 'new-api-main\web') | Out-Null
-  # dist 已嵌入 exe，无需随包分发（省体积）
-}
+# 注意：new-api-main 目录在"准备目录"阶段被整体删除，这里必须先建目录。
+New-Item -ItemType Directory -Force -Path (Join-Path $StageDir 'new-api-main') | Out-Null
+Copy-Item (Join-Path $Root 'new-api-main\.env.example') (Join-Path $StageDir 'new-api-main\.env.example') -Force
 Ok "主站配置模板"
 
 # ---------------------------------------------------------------------------
