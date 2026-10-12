@@ -16,13 +16,32 @@ import (
 
 const modelsFetchTimeout = 15 * time.Second
 
+// expandHome resolves a leading "~" (with "~/" or "~\" or bare "~") to the
+// user's home directory, so manifests can point at service-owned state that
+// lives outside the hub, such as ~/.opencodez-free/agent-key.txt. The service
+// mints that file itself, so a packager must not pre-create it.
+func expandHome(path string) string {
+	trimmed := strings.TrimSpace(path)
+	if trimmed != "~" && !strings.HasPrefix(trimmed, "~/") && !strings.HasPrefix(trimmed, `~\`) {
+		return path
+	}
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return path
+	}
+	if trimmed == "~" {
+		return home
+	}
+	return filepath.Join(home, trimmed[2:])
+}
+
 // ReadKey extracts the service's client API key according to key_source.
 func (s *Service) ReadKey() (string, error) {
 	source := s.Manifest.KeySource
 	if source == nil {
 		return "", fmt.Errorf("manifest has no key_source")
 	}
-	path := source.Path
+	path := expandHome(source.Path)
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(s.Workdir, path)
 	}

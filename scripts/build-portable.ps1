@@ -282,9 +282,12 @@ foreach ($f in Get-ChildItem $dataSrc -Filter *.json) {
                           '"path": "../var/cmdgo/config.json"'
     }
     'opencodez.json' {
-      # OPENCODEZ_CONFIG 指向包内配置文件，密钥文件随其解析
+      # 密钥路径硬编码在服务内（~/.opencodez-free/agent-key.txt），不受
+      # OPENCODEZ_CONFIG 影响，而且服务是"读不到文件才生成密钥"——预建空
+      # 文件会被当成空密钥，导致注册渠道失败。所以这里指向真实的自建位置，
+      # 用 ~ 形式（引擎已支持展开），密钥由服务首次启动时自行生成。
       $json = $json -replace '"path":\s*"[^"]*\.opencodez-free\\\\agent-key\.txt"',
-                          '"path": "../var/opencodez/agent-key.txt"'
+                          '"path": "~/.opencodez-free/agent-key.txt"'
       # 注入环境变量，让服务把配置目录认到包内
       if ($json -notmatch '"env"') {
         $json = $json -replace '"key_source"',
@@ -345,22 +348,30 @@ if ($problems.Count -gt 0) {
 Ok "一致性校验通过：5 个服务目录 ↔ 5 份 manifest，无孤儿项"
 
 # 密钥路径校验：manifest 里写的相对路径必须能从 workdir 解析到真实文件。
-# 例外：cline 的 .env.local 首次启动会由它自己的 start.mjs 自动创建（我们
-# 有意不打包 .env* 以避开开发机密钥），所以缺它只提示、不阻断。
+# 两个已知豁免（都由服务自己在首次启动时创建，打包者不该代劳）：
+#   - cline 的 .env.local：有意不打包 .env*，其 start.mjs 会自建
+#   - opencodez 的 agent-key.txt：它"读不到文件才生成密钥"，预建空文件
+#     反而会被当成空密钥（这是上一版注册渠道失败的原因）
+$selfMinted = @('cline.json', 'opencodez.json')
 foreach ($name in $pairs.Keys) {
   $m = [System.IO.File]::ReadAllText((Join-Path $dataDst $name), [System.Text.Encoding]::UTF8) | ConvertFrom-Json
   if (-not $m.key_source -or -not $m.key_source.path) { continue }
-  if ([System.IO.Path]::IsPathRooted($m.key_source.path)) { continue }
-  $resolved = [System.IO.Path]::GetFullPath((Join-Path (Join-Path $StageDir $pairs[$name]) $m.key_source.path))
+  $ksPath = [string]$m.key_source.path
+  if ($ksPath.StartsWith('~')) {
+    Warn "$name 的密钥位于用户主目录（服务自建），跳过路径校验"
+    continue
+  }
+  if ([System.IO.Path]::IsPathRooted($ksPath)) { continue }
+  $resolved = [System.IO.Path]::GetFullPath((Join-Path (Join-Path $StageDir $pairs[$name]) $ksPath))
   if (-not (Test-Path $resolved)) {
-    if ($name -eq 'cline.json') {
-      Warn "cline 的 .env.local 未打包（首次启动 start.mjs 会自动创建，属预期）"
+    if ($selfMinted -contains $name) {
+      Warn "$name 的密钥文件未随包提供（服务首次启动时自行生成，属预期）"
       continue
     }
     throw "manifest $name 的 key_source.path 解析不到文件: $resolved"
   }
 }
-Ok "密钥路径校验通过（相对路径均可解析）"
+Ok "密钥路径校验通过"
 
 # 校验：无 BOM、无绝对路径、且每份都能被 JSON 解析器读通
 Get-ChildItem $dataDst -Filter *.json | ForEach-Object {
