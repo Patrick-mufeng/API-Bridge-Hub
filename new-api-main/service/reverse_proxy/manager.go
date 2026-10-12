@@ -147,6 +147,15 @@ func Init() {
 	sort.Strings(autoIDs)
 	for _, id := range autoIDs {
 		go func(id string) {
+			// A manifest can outlive its workdir (trimmed distribution builds,
+			// a service removed by hand). Starting it would only produce a
+			// confusing failure, so skip those quietly with an explainable line.
+			if svc, ok := m.Get(id); ok {
+				if info, err := os.Stat(svc.Workdir); err != nil || !info.IsDir() {
+					logger.LogInfo(nil, fmt.Sprintf("reverse proxy auto-start: %s skipped, workdir %s does not exist in this build", id, svc.Workdir))
+					return
+				}
+			}
 			status, err := m.Start(id)
 			switch {
 			case err == nil:
@@ -336,6 +345,14 @@ func (m *Manager) Probe(svc *Service) Status {
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
 	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
 		status.Healthy = true
+		return status
+	}
+	// The process is up but its health endpoint reports "not servable". For
+	// every relay in this hub that means the same thing: no usable upstream
+	// account yet. Say so, instead of leaving a bare HTTP code that reads like
+	// a crash (503 is the normal reply here until you sign in).
+	if resp.StatusCode == http.StatusServiceUnavailable || resp.StatusCode == http.StatusTooManyRequests {
+		status.Detail = fmt.Sprintf("服务进程正常，等待登录上游账号（健康检查 HTTP %d）· open the service panel and sign in an account", resp.StatusCode)
 		return status
 	}
 	status.Detail = fmt.Sprintf("health check returned HTTP %d", resp.StatusCode)
