@@ -47,7 +47,10 @@ export type RequestPolicySettings = RetrySettings &
   Pick<ChannelAffinitySettings, keyof ChannelAffinitySettings>
 
 export const defaultRequestPolicySettings: RequestPolicySettings = {
-  RetryTimes: 0,
+  // 2, not 0: a bare model id ("glm-5.3") is a group over every provider that
+  // serves it, and a group only fails over if a retry is allowed. Keep in step
+  // with common.RetryTimes in the backend.
+  RetryTimes: 2,
   AutomaticRetryStatusCodes:
     '100-199,300-399,401-407,409-499,500-503,505-523,525-599',
   ChannelDisableThreshold: '',

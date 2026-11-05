@@ -86,6 +86,32 @@ glm-5.3:  WorkBuddy AI (p100) → WorkBuddy (p0)
 请求裸名走**优先级最高**的那家，失败再降级。这是复用 new-api 的 `ability` 表：
 主键是 (group, model, channel)，路由时按 priority 分层、层内按 weight 随机。
 
+> **降级需要重试次数大于 0。** `RetryTimes` 默认是 **2**（`common/constants.go`），
+> 一次请求最多再试两家。设成 0 时裸名只会打优先级最高的那家，失败就是客户端的失败。
+> 后台任务的细节见第五节。
+
+### 池子里的账号怎么挑
+
+一个 provider 的账号是**一个渠道的多 key**，挑 key 的规则在 `model/channel.go`
+的 `GetNextEnabledKey`，按顺序：
+
+1. **跳过已停用的 key**（`MultiKeyStatusList` 里不是 enabled 的）。
+2. **跳过正在休息的 key**（`MultiKeyCooldownUntil` 里还没到点的）。429 休息 60 秒，
+   5xx 休息 30 秒；401/403 不休息——那是要重新登录，不是等一会儿就好。
+3. **跳过额度快用完的 key**（`MultiKeyUsedShare` ≥ 90，且读数是 5 分钟内的）。
+   份额取该账号**最满的那一个**窗口：周窗口还有余量也救不了五小时窗口已经 98%。
+4. 剩下按轮询/随机挑一个。
+
+三条兜底，都是刻意的：
+
+- **所有 key 都在休息** → 挑最早回来的那个，而不是报「没有可用 key」。一个账号池
+  集体被限流一分钟，比让客户端看到一个空池子好。
+- **所有账号都快用完** → 照常轮询，因为这时候没有更好的选择。
+- **额度读数是旧的（> 5 分钟）** → 当作不知道。窗口可能已经重置，旧数字比没有更糟。
+
+额度的数字来自健康同步（`service/pluginreg/health.go` 的 `applyHealth`），
+每次同步都把每个账号最满的窗口份额写进渠道。
+
 ## 四、接口
 
 全部在 `/api/plugin_provider`，需要管理员。
@@ -200,13 +226,34 @@ glm-5.3:  WorkBuddy AI (p100) → WorkBuddy (p0)
 先落在这里；停用的成员画成虚线加删除线，表示请求根本到不了它。行按序渐入，
 也遵循 `prefers-reduced-motion`。
 
-## 五、三个后台任务
+## 五、三个后台任务，外加一个即时的
 
 | 任务 | 周期 | 做什么 |
 |---|---|---|
 | **续期** | 2 分钟（15s 首跑） | 到期前 10 分钟内的账号，让插件刷新 token |
-| **健康同步** | 5 分钟（60s 首跑） | 读每个账号状态，失效的 key 自动停用 |
+| **健康同步** | 5 分钟（60s 首跑） | 读每个账号状态，失效的 key 自动停用，**并把额度份额写给选路** |
 | **自动签到** | 30 分钟（90s 首跑） | 每天 `at` 点后，为当天未签的账号签到 |
+
+### 失败请求会立刻触发一次健康检查
+
+五分钟太慢。一个凌晨失效的 token，会让接下来五分钟里落到它上面的每个请求都失败一次。
+所以 `ProcessChannelError` 遇到 **401 / 403 / 402 / 429** 时，会通过
+`service.ChannelFailureHook` 叫一次 `pluginreg.SyncChannelHealthAfterFailure`：
+
+```go
+// main.go 里接线，方向是 service ← pluginreg，不是反过来
+service.ChannelFailureHook = pluginreg.SyncChannelHealthAfterFailure
+```
+
+用 hook 而不是直接调用，是因为 `service` 不能 import `pluginreg`（会成环）。
+
+三点行为值得记住：
+
+- **在后台跑**（`gopool.Go`），不拖慢这次请求，也不因为插件异常把已经发出去的回复
+  变成错误。
+- **同一个 provider 30 秒内只问一次**（`syncCooldown`）。一个 401 很少单独出现——
+  同一秒还有别的请求在飞，不挡一下就是几十次并发询问。
+- **只对插件渠道有效**：`channelProvider(ch)` 为空就跳过，普通渠道没账号可问。
 
 ### 续期为什么排在健康同步之前
 
@@ -260,6 +307,18 @@ these model names are already served by another channel…
 
 new-api 的接口不返回 `key` 字段（安全考虑）。账号在
 **「服务」标签 → 某个服务 → 详情** 页看，那里有 `key_on` 表示每个 key 是否在用。
+
+### 一个账号一直 429，其他账号在闲着
+
+选路会跳过额度 ≥ 90% 的账号，但那只在**健康同步读到过份额**时有效。
+先看这个账号的窗口数字是不是空的：
+
+```
+GET /api/plugin_provider/providers/:id/page
+```
+
+`windows` 为空说明插件没报额度，于是选路无从判断，只能按轮询走。
+另一种可能是份额读数是旧的（超过 5 分钟），同样会被忽略。
 
 ## 七、测试
 

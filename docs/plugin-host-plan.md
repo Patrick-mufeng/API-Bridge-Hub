@@ -8,7 +8,7 @@
 |---|---|
 | Q1 迁移范围 | 先做 **workbuddy**，跑通再铺开 |
 | Q2 多租户边界 | 插件渠道按**分组授权**（b） |
-| Q3 旧反代去留 | 保留 manifest 面板作 **Legacy**（a），先不删 |
+| Q3 旧反代去留 | ~~保留 manifest 面板作 **Legacy**（a），先不删~~ → **已改**：`c642dd6` 把管理器、manifest 与面板整体删除 |
 | Q4 登录 UI | 在 new-api React 后台自建（a） |
 | Q5 插件信任 | 白名单 + 手动添加需风险确认（b） |
 | Q6 网关中间件 | 先不做（a），new-api 原生 `param_override`/`model_mapping` 已等价 |
@@ -376,7 +376,7 @@ vitest   (新功能)            7 PASS / 0 FAIL
 
 ### P4 · 更新与中文化（已完成，随 P2）
 
-manifest → 插件迁移向导（凭据必须重新授权），manifest 面板保留为 Legacy。
+~~manifest → 插件迁移向导~~：manifest 那一套已在 `c642dd6` 删除，没有可迁移的东西了。
 
 复用 market.go / updates.go，npmmirror 支持，每日检查更新（默认关）。
 （P2 已经把市场、更新、npmmirror 一起做了，剩余是"每日自动检查"）

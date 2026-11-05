@@ -147,7 +147,17 @@ var QuotaRemindThreshold = 1000
 // use quota_setting.pre_consume_multiplier and the estimated input cost.
 var PreConsumedQuota = 500
 
-var RetryTimes = 0
+// RetryTimes is how many further channels one request may try after the
+// first fails. It is 2 rather than 0 because this hub publishes a bare model
+// id ("glm-5.3") as a group over every provider serving it, and a group is
+// only a failover if a retry is allowed: at 0 the bare id reaches whichever
+// member is first in line and its failure is the client's failure. Two
+// retries cover the usual three-way group (WorkBuddy / Trae / OpenCode Zen)
+// without letting a dead model burn minutes of a request.
+//
+// An operator who set the option keeps their value; this is only the default
+// a fresh install starts from.
+var RetryTimes = 2
 
 //var RootUserEmail = ""
 
