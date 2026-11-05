@@ -349,6 +349,7 @@ func SetApiRouter(router *gin.Engine) {
 		dataRoute.GET("/", middleware.AdminAuth(), controller.GetAllQuotaDates)
 		dataRoute.GET("/users", middleware.AdminAuth(), controller.GetQuotaDatesByUser)
 		dataRoute.GET("/self", middleware.UserAuth(), controller.GetUserQuotaDates)
+		dataRoute.GET("/tokens", middleware.UserAuth(), controller.GetTokenStats)
 		dataRoute.GET("/flow", middleware.AdminAuth(), controller.GetAllFlowQuotaDates)
 		dataRoute.GET("/flow/self", middleware.UserAuth(), controller.GetUserFlowQuotaDates)
 
@@ -436,30 +437,55 @@ func SetApiRouter(router *gin.Engine) {
 			deploymentsRoute.DELETE("/:id", controller.DeleteDeployment)
 		}
 
-		// Reverse proxy service management: manifest-driven lifecycle for the
-		// local reverse-proxy services that feed this relay, plus same-origin
-		// embedding of their own panels.
-		proxyRoute := apiRouter.Group("/reverse_proxy")
-		proxyRoute.Use(middleware.AdminAuth())
+		// Plugin providers: the subscriptions community plugins serve
+		// (WorkBuddy, Qoder, Cline…). The host is the Bun process that runs
+		// them; a provider is signed in to and then registered as channels.
+		pluginRoute := apiRouter.Group("/plugin_provider")
+		pluginRoute.Use(middleware.AdminAuth())
 		{
-			proxyRoute.GET("/services", controller.ListReverseProxyServices)
-			proxyRoute.POST("/services/reload", controller.ReloadReverseProxyServices)
-			proxyRoute.GET("/services/:id/logs", controller.ReverseProxyServiceLogs)
-			proxyRoute.GET("/services/:id/key", controller.RevealReverseProxyServiceKey)
-			proxyRoute.POST("/services/:id/start", controller.StartReverseProxyService)
-			proxyRoute.POST("/services/:id/stop", controller.StopReverseProxyService)
-			proxyRoute.POST("/services/:id/restart", controller.RestartReverseProxyService)
-			proxyRoute.POST("/services/:id/build", controller.BuildReverseProxyService)
-			proxyRoute.POST("/services/:id/channel", controller.RegisterReverseProxyChannel)
-			proxyRoute.POST("/services/:id/panel_ticket", controller.CreateReverseProxyPanelTicket)
+			pluginRoute.GET("/providers", controller.ListPluginProviders)
+			pluginRoute.GET("/providers/:id", controller.GetPluginProvider)
+			pluginRoute.POST("/register", controller.RegisterPluginProvider)
+
+			// signing in to an account, and out of one
+			pluginRoute.POST("/signin/start", controller.StartPluginSignIn)
+			pluginRoute.POST("/signin/key", controller.PluginSignInKey)
+			pluginRoute.POST("/signin/poll", controller.PollPluginSignIn)
+			pluginRoute.POST("/signout", controller.SignOutPluginAccount)
+			pluginRoute.POST("/option", controller.SetPluginProviderOption)
+
+			// account health: a lapsed account's channel is turned off, so
+			// routing passes it by instead of failing over after the fact
+			pluginRoute.POST("/health/sync", controller.SyncPluginHealth)
+
+			// what is installed, and the market to add more from
+			pluginRoute.GET("/plugins", controller.ListPlugins)
+			pluginRoute.POST("/plugins", controller.InstallPlugin)
+			pluginRoute.DELETE("/plugins", controller.UninstallPlugin)
+			pluginRoute.POST("/plugins/off", controller.SetPluginOff)
+			pluginRoute.POST("/upgrade", controller.UpgradePlugin)
+			pluginRoute.GET("/market", controller.ListPluginMarket)
+			pluginRoute.GET("/market/search", controller.SearchPluginMarket)
+
+			// the host itself
+			// a provider's own page: accounts, allowance, check-in
+			// the daily check-in: its switch, its hour, and pressing it now
+			pluginRoute.GET("/checkin/options", controller.GetPluginCheckinOptions)
+			pluginRoute.PUT("/checkin/options", controller.SetPluginCheckinOptions)
+			pluginRoute.POST("/checkin/run", controller.RunPluginCheckin)
+			pluginRoute.GET("/renewals", controller.ListPluginRenewals)
+
+			// a provider's usage: what the relay recorded for its channels,
+			// so its page can show the spend beside the allowance
+			pluginRoute.GET("/providers/:id/usage", controller.GetPluginProviderUsage)
+			pluginRoute.GET("/providers/:id/requests", controller.GetPluginProviderRequests)
+			pluginRoute.GET("/providers/:id/page", controller.GetPluginProviderPage)
+			pluginRoute.POST("/checkin", controller.CheckinPluginProvider)
+			pluginRoute.POST("/migrate-prefixes", controller.MigratePluginPrefixes)
+			pluginRoute.GET("/routes", controller.ListPluginRoutes)
+			pluginRoute.GET("/host", controller.GetPluginHost)
+			pluginRoute.PUT("/host", controller.UpdatePluginHost)
 		}
-		// The panel proxy authenticates with a short-lived, path-scoped ticket
-		// cookie because iframe navigation cannot carry the Authorization
-		// header the dashboard normally uses.
-		proxyPanelRoute := apiRouter.Group("/reverse_proxy/panel/:id")
-		{
-			proxyPanelRoute.GET("/*path", controller.ServeReverseProxyPanel)
-			proxyPanelRoute.POST("/*path", controller.ServeReverseProxyPanel)
-		}
+
 	}
 }

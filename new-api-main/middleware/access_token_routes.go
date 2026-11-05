@@ -189,6 +189,39 @@ var accessTokenRouteRules = map[string]accessTokenRouteRule{
 	"DELETE /api/system-info/stale-instances":      accessTokenScopeRule("ops:write"),
 	"DELETE /api/system-info/instances/:node_name": accessTokenScopeRule("ops:write"),
 
+	"GET /api/data/tokens": accessTokenScopeRule("usage:read"),
+
+	// router/api-router.go: /api/plugin_provider (the plugins this hub installs,
+	// the providers they serve, and the accounts signed in to them)
+	"GET /api/plugin_provider/providers":              accessTokenScopeRule("plugin_provider:read"),
+	"GET /api/plugin_provider/providers/:id":          accessTokenScopeRule("plugin_provider:read"),
+	"GET /api/plugin_provider/providers/:id/page":     accessTokenScopeRule("plugin_provider:read"),
+	"GET /api/plugin_provider/providers/:id/usage":    accessTokenScopeRule("plugin_provider:read"),
+	"GET /api/plugin_provider/providers/:id/requests": accessTokenScopeRule("plugin_provider:read"),
+	"GET /api/plugin_provider/plugins":                accessTokenScopeRule("plugin_provider:read"),
+	"GET /api/plugin_provider/market":                 accessTokenScopeRule("plugin_provider:read"),
+	"GET /api/plugin_provider/market/search":          accessTokenScopeRule("plugin_provider:read"),
+	"GET /api/plugin_provider/host":                   accessTokenScopeRule("plugin_provider:read"),
+	"GET /api/plugin_provider/routes":                 accessTokenScopeRule("plugin_provider:read"),
+	"GET /api/plugin_provider/renewals":               accessTokenScopeRule("plugin_provider:read"),
+	"GET /api/plugin_provider/checkin/options":        accessTokenScopeRule("plugin_provider:read"),
+	"POST /api/plugin_provider/register":              accessTokenScopeRule("plugin_provider:write"),
+	"POST /api/plugin_provider/signin/start":          accessTokenScopeRule("plugin_provider:write"),
+	"POST /api/plugin_provider/signin/key":            accessTokenScopeRule("plugin_provider:write"),
+	"POST /api/plugin_provider/signin/poll":           accessTokenScopeRule("plugin_provider:write"),
+	"POST /api/plugin_provider/signout":               accessTokenScopeRule("plugin_provider:write"),
+	"POST /api/plugin_provider/option":                accessTokenScopeRule("plugin_provider:write"),
+	"POST /api/plugin_provider/health/sync":           accessTokenScopeRule("plugin_provider:write"),
+	"POST /api/plugin_provider/plugins":               accessTokenScopeRule("plugin_provider:write"),
+	"DELETE /api/plugin_provider/plugins":             accessTokenScopeRule("plugin_provider:write"),
+	"POST /api/plugin_provider/plugins/off":           accessTokenScopeRule("plugin_provider:write"),
+	"POST /api/plugin_provider/upgrade":               accessTokenScopeRule("plugin_provider:write"),
+	"PUT /api/plugin_provider/checkin/options":        accessTokenScopeRule("plugin_provider:write"),
+	"POST /api/plugin_provider/checkin/run":           accessTokenScopeRule("plugin_provider:write"),
+	"POST /api/plugin_provider/checkin":               accessTokenScopeRule("plugin_provider:write"),
+	"POST /api/plugin_provider/migrate-prefixes":      accessTokenScopeRule("plugin_provider:write"),
+	"PUT /api/plugin_provider/host":                   accessTokenScopeRule("plugin_provider:write"),
+
 	// router/api-router.go: /api/plugin/task
 	"GET /api/plugin/task":                           accessTokenScopeRule("plugin:read"),
 	"POST /api/plugin/task":                          accessTokenScopeRule("plugin:write"),
@@ -305,21 +338,8 @@ var accessTokenRouteRules = map[string]accessTokenRouteRule{
 	// router/relay-router.go
 	"POST /pg/chat/completions": accessTokenSessionRule,
 
-	// router/api-router.go: /api/reverse_proxy
-	"GET /api/reverse_proxy/services":              accessTokenScopeRule("proxy:read"),
-	"POST /api/reverse_proxy/services/reload":      accessTokenScopeRule("proxy:write"),
-	"GET /api/reverse_proxy/services/:id/logs":     accessTokenScopeRule("proxy:read"),
-	"POST /api/reverse_proxy/services/:id/start":   accessTokenScopeRule("proxy:write"),
-	"POST /api/reverse_proxy/services/:id/stop":    accessTokenScopeRule("proxy:write"),
-	"POST /api/reverse_proxy/services/:id/restart": accessTokenScopeRule("proxy:write"),
-	"POST /api/reverse_proxy/services/:id/build":   accessTokenScopeRule("proxy:write"),
-	"POST /api/reverse_proxy/services/:id/channel": accessTokenScopeRule("proxy:write"),
 	// Revealing a stored service key and minting an iframe panel ticket are
 	// browser-session only; scoped access tokens cannot call them.
-	"GET /api/reverse_proxy/services/:id/key":           accessTokenSessionRule,
-	"POST /api/reverse_proxy/services/:id/panel_ticket": accessTokenSessionRule,
-	"GET /api/reverse_proxy/panel/:id/*path":            accessTokenSessionRule,
-	"POST /api/reverse_proxy/panel/:id/*path":           accessTokenSessionRule,
 }
 
 var (

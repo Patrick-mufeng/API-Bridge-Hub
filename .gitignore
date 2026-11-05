@@ -29,3 +29,10 @@ Thumbs.db
 
 # ===== 打包产物（体积大，走 GitHub Release 分发，不进仓库）=====
 dist-release/
+
+# ===== 插件宿主（凭据与 Bun 二进制，绝不入库）=====
+# 真实登录态、Bun、models.dev 缓存都在 new-api-main/data/plugin-host 下，
+# 由 new-api-main/.gitignore 的 /data/ 规则覆盖。这里再兜一层：
+**/plugin-auth.json
+**/plugin-providers.json
+**/plugprobe.exe

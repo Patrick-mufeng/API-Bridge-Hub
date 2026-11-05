@@ -18,18 +18,21 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import {
   Activity,
+  BarChart3,
   Box,
   ClipboardList,
   CreditCard,
   FileText,
   FlaskConical,
+  GitBranch,
   Key,
+  Layers,
   LayoutDashboard,
   ListTodo,
   MessageSquare,
+  Plug,
   PlugZap,
   Radio,
-  Server,
   ServerCog,
   Settings,
   ShieldCheck,
@@ -43,6 +46,7 @@ import { useTranslation } from 'react-i18next'
 
 import type { SidebarData } from '@/components/layout/types'
 import { ROLE } from '@/lib/roles'
+import { useSystemConfigStore } from '@/stores/system-config-store'
 
 /**
  * Root navigation groups for the application sidebar.
@@ -52,6 +56,10 @@ import { ROLE } from '@/lib/roles'
  */
 export function useSidebarData(): SidebarData {
   const { t } = useTranslation()
+  // 仅当管理员明确关闭该页时才隐藏；状态尚未加载时保持入口可见，
+  // 避免导航项闪现后消失。
+  const tokenStatsEnabled =
+    useSystemConfigStore((state) => state.config.tokenStatsEnabled) !== false
 
   return {
     navGroups: [
@@ -85,6 +93,15 @@ export function useSidebarData(): SidebarData {
             url: '/dashboard/models',
             icon: LayoutDashboard,
           },
+          ...(tokenStatsEnabled
+            ? [
+                {
+                  title: t('Token Statistics'),
+                  url: '/token-stats',
+                  icon: BarChart3,
+                },
+              ]
+            : []),
           {
             title: t('API Keys'),
             url: '/keys',
@@ -140,9 +157,21 @@ export function useSidebarData(): SidebarData {
             icon: Radio,
           },
           {
-            title: t('Reverse Proxy'),
-            url: '/reverse-proxy',
-            icon: Server,
+            title: t('Plugins'),
+            url: '/plugin-providers',
+            icon: Plug,
+            requiredRole: ROLE.ADMIN,
+          },
+          {
+            title: t('Services'),
+            url: '/plugin-services',
+            icon: Layers,
+            requiredRole: ROLE.ADMIN,
+          },
+          {
+            title: t('Routing'),
+            url: '/plugin-routing',
+            icon: GitBranch,
             requiredRole: ROLE.ADMIN,
           },
           {

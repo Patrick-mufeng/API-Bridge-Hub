@@ -1,8 +1,11 @@
 name: CI
 
 on:
+  push:
+    branches: [main]
   pull_request:
     types: [opened, synchronize, closed]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,7 +17,8 @@ concurrency:
 jobs:
   backend:
     name: Backend vet, build, and test
-    if: github.event.action != 'closed' || github.event.pull_request.merged == true
+    # a push has no pull_request payload, and is never "closed"
+    if: github.event_name != 'pull_request' || github.event.action != 'closed' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -22,10 +26,22 @@ jobs:
 
     steps:
       - name: Checkout
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Checkout the base branch of a closed pull request
+        if: github.event_name == 'pull_request' && github.event.action == 'closed'
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: ${{ github.event.pull_request.base.repo.full_name }}
-          ref: ${{ github.event.action == 'closed' && github.event.pull_request.base.ref || github.ref }}
+          ref: ${{ github.event.pull_request.base.ref }}
+
+      - name: Checkout the pull request
+        if: github.event_name == 'pull_request' && github.event.action != 'closed'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          repository: ${{ github.event.pull_request.base.repo.full_name }}
+          ref: ${{ github.ref }}
 
       - name: Set up Go
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
@@ -40,6 +56,18 @@ jobs:
         run: |
           mkdir -p web/dist
           touch web/dist/index.html
+
+      # Unformatted files cost a commit each time they reach main. The root
+      # module is checked here; a file in a nested module is checked in its
+      # own step below.
+      - name: Gofmt
+        run: |
+          bad=$(gofmt -l $(git ls-files '*.go' | grep -v -e '^relaykit/' -e '^tokenkit/'))
+          if [ -n "$bad" ]; then
+            echo "not gofmt'd:"
+            echo "$bad"
+            exit 1
+          fi
 
       - name: Vet root module
         run: go vet ./...
@@ -66,9 +94,65 @@ jobs:
       - name: Test root, relaykit, and tokenkit modules
         run: make test
 
+  plugin-smoke:
+    name: Plugin host end-to-end
+    # The plugin host is most of this fork: its routes, its model naming,
+    # its check-in and its renewal are exercised by the smoke test below,
+    # which nothing else in this file does.
+    if: github.event_name != 'pull_request' || github.event.action != 'closed' || github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GOWORK: 'off'
+
+    steps:
+      - name: Checkout
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Checkout the base branch of a closed pull request
+        if: github.event_name == 'pull_request' && github.event.action == 'closed'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          repository: ${{ github.event.pull_request.base.repo.full_name }}
+          ref: ${{ github.event.pull_request.base.ref }}
+
+      - name: Checkout the pull request
+        if: github.event_name == 'pull_request' && github.event.action != 'closed'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          repository: ${{ github.event.pull_request.base.repo.full_name }}
+          ref: ${{ github.ref }}
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            relaykit/go.sum
+            tokenkit/go.sum
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Create frontend embed placeholder
+        run: |
+          mkdir -p web/dist
+          touch web/dist/index.html
+
+      - name: Build the binary the smoke test runs
+        run: go build -o smoke-server .
+
+      - name: Walk every plugin endpoint against it
+        run: node scripts/smoke-plugin-host.mjs ./smoke-server
+
+
   frontend:
     name: Frontend typecheck and test
-    if: github.event.action != 'closed' || github.event.pull_request.merged == true
+    if: github.event_name != 'pull_request' || github.event.action != 'closed' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -95,3 +179,8 @@ jobs:
 
       - name: Test
         run: bun run test
+
+      # typecheck alone has let a page that cannot build through before,
+      # and a page that cannot build is one the console cannot open
+      - name: Build
+        run: bun run build

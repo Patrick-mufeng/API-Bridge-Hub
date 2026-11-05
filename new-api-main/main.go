@@ -31,7 +31,7 @@ import (
 	"github.com/QuantumNous/new-api/router"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/service/authz"
-	"github.com/QuantumNous/new-api/service/reverse_proxy"
+	"github.com/QuantumNous/new-api/service/pluginreg"
 	_ "github.com/QuantumNous/new-api/setting/performance_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 
@@ -135,6 +135,15 @@ func main() {
 
 	// Subscription quota reset task (daily/weekly/monthly/custom)
 	service.StartSubscriptionQuotaResetTask()
+
+	// Plugin account health: a lapsed sign-in's channel is turned off, so
+	// routing passes it by instead of failing over after the fact.
+	pluginreg.StartHealthWorker(context.Background())
+	// Renewal and the daily check-in: an account is kept alive before its
+	// vendor expires it, and its credits are claimed each day without anyone
+	// opening a page.
+	pluginreg.StartRenewWorker(context.Background())
+	pluginreg.StartCheckinWorker(context.Background())
 
 	// Report this process as a system instance so the System Info page can show
 	// all currently alive nodes in multi-instance deployments.
@@ -378,7 +387,6 @@ func InitResources() error {
 
 	// Prepare the manifest-driven reverse proxy service manager: create its
 	// data layout, install seed manifests, and load the current definitions.
-	reverse_proxy.Init()
 
 	return nil
 }

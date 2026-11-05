@@ -6,6 +6,16 @@ It is an engineering compliance artifact and should be kept with Docker images, 
 Scope: direct dependencies from `go.mod`, `web/package.json`, and `electron/package.json`.
 Transitive dependencies should be audited before a final external release.
 
+## Vendored source
+
+| Component | Where | Upstream | License | What was taken |
+|---|---|---|---|---|
+| magpie plugin host | `pkg/pluginhost/`, `cmd/plugprobe/` | `github.com/yetone/magpie` | MIT (© 2026 yetone) | The OpenCode plugin host: `host.js` (unmodified), its Go side (`host.go`, `providers.go`, `store.go`, `bun.go`, `market.go`, `updates.go` and the rest of `internal/plugin`), and reimplementations of the parts of magpie's `internal/{appdir,catalog,edit,filememo,ghtoken,lastgood,libc,netproxy,proc,settings,source,steady,update}` that the host calls, under `pkg/pluginhost/support/` |
+
+magpie is MIT-licensed, which is compatible with this project's AGPL-3.0: the
+combined work is distributed under AGPL-3.0 and magpie's copyright notice is
+kept in the source files it came from.
+
 ## Dependency Inventory
 
 | Area     | Scope       | Ecosystem | Dependency                                            | Version                              | License                                            |

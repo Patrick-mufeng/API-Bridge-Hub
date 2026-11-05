@@ -39,5 +39,8 @@ const (
 	APITypeAdvancedCustom
 	APITypeSub2API
 	APITypeNewAPI
+	// APITypePluginProvider is a provider a plugin-host plugin serves; its
+	// adaptor speaks whichever protocol each model's AI SDK package does.
+	APITypePluginProvider
 	APITypeDummy // this one is only for count, do not add any channel after this
 )

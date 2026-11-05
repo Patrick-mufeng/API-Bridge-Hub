@@ -127,6 +127,28 @@ type ChannelOtherSettings struct {
 	// rejection. Empty follows the default allow policy. Accepted values:
 	// "", "allow", "safe", "strict".
 	ToolLossPolicy string `json:"tool_loss_policy,omitempty"`
+	// ModelContextWindows records the upstream-declared context budget per
+	// relay model name. It is written when a channel is registered from a
+	// channel, so /v1/models can report the window the upstream enforces.
+	ModelContextWindows map[string]ModelContextWindow `json:"model_context_windows,omitempty"`
+	// PluginProvider and PluginPrefix record what a channel registered from
+	// a plugin is served by, and the namespace its models were given.
+	//
+	// They are kept beside the channel rather than derived again on each
+	// read: a provider's id is not the model namespace (workbuddy-ai is
+	// wbai:), and a channel keeps its own when the rule changes.
+	PluginProvider string `json:"plugin_provider,omitempty"`
+	PluginPrefix   string `json:"plugin_prefix,omitempty"`
+	// PluginGroup is the bare model name each namespaced model answers to as
+	// well (wb:glm-5.3 → glm-5.3), for the group that routes across the
+	// providers serving one model id. Empty when the channel isn't in one.
+	PluginGroup string `json:"plugin_group,omitempty"`
+}
+
+// ModelContextWindow is one relay model's upstream context budget.
+type ModelContextWindow struct {
+	ContextLength   int `json:"context_length,omitempty"`
+	MaxOutputTokens int `json:"max_output_tokens,omitempty"`
 }
 
 func (s *ChannelOtherSettings) IsOpenRouterEnterprise() bool {

@@ -44,14 +44,17 @@ import { Route as AuthenticatedKeysIndexRouteImport } from './routes/_authentica
 import { Route as AuthenticatedModelsIndexRouteImport } from './routes/_authenticated/models/index'
 import { Route as AuthenticatedModelsSectionRouteImport } from './routes/_authenticated/models/$section'
 import { Route as AuthenticatedPlaygroundIndexRouteImport } from './routes/_authenticated/playground/index'
+import { Route as AuthenticatedPluginProvidersIndexRouteImport } from './routes/_authenticated/plugin-providers/index'
+import { Route as AuthenticatedPluginRoutingIndexRouteImport } from './routes/_authenticated/plugin-routing/index'
+import { Route as AuthenticatedPluginServicesIndexRouteImport } from './routes/_authenticated/plugin-services/index'
 import { Route as AuthenticatedProfileIndexRouteImport } from './routes/_authenticated/profile/index'
 import { Route as AuthenticatedRedemptionCodesIndexRouteImport } from './routes/_authenticated/redemption-codes/index'
-import { Route as AuthenticatedReverseProxyIndexRouteImport } from './routes/_authenticated/reverse-proxy/index'
 import { Route as AuthenticatedSecurityIndexRouteImport } from './routes/_authenticated/security/index'
 import { Route as AuthenticatedSubscriptionsIndexRouteImport } from './routes/_authenticated/subscriptions/index'
 import { Route as AuthenticatedSystemInfoIndexRouteImport } from './routes/_authenticated/system-info/index'
 import { Route as AuthenticatedSystemSettingsIndexRouteImport } from './routes/_authenticated/system-settings/index'
 import { Route as AuthenticatedTaskPluginsIndexRouteImport } from './routes/_authenticated/task-plugins/index'
+import { Route as AuthenticatedTokenStatsIndexRouteImport } from './routes/_authenticated/token-stats/index'
 import { Route as AuthenticatedUsageLogsIndexRouteImport } from './routes/_authenticated/usage-logs/index'
 import { Route as AuthenticatedUsageLogsSectionRouteImport } from './routes/_authenticated/usage-logs/$section'
 import { Route as AuthenticatedUsageLogsAuditRouteImport } from './routes/_authenticated/usage-logs/audit'
@@ -257,6 +260,24 @@ const AuthenticatedPlaygroundIndexRoute =
     path: '/playground/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPluginProvidersIndexRoute =
+  AuthenticatedPluginProvidersIndexRouteImport.update({
+    id: '/plugin-providers/',
+    path: '/plugin-providers/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedPluginRoutingIndexRoute =
+  AuthenticatedPluginRoutingIndexRouteImport.update({
+    id: '/plugin-routing/',
+    path: '/plugin-routing/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedPluginServicesIndexRoute =
+  AuthenticatedPluginServicesIndexRouteImport.update({
+    id: '/plugin-services/',
+    path: '/plugin-services/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedProfileIndexRoute =
   AuthenticatedProfileIndexRouteImport.update({
     id: '/profile/',
@@ -267,12 +288,6 @@ const AuthenticatedRedemptionCodesIndexRoute =
   AuthenticatedRedemptionCodesIndexRouteImport.update({
     id: '/redemption-codes/',
     path: '/redemption-codes/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedReverseProxyIndexRoute =
-  AuthenticatedReverseProxyIndexRouteImport.update({
-    id: '/reverse-proxy/',
-    path: '/reverse-proxy/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedSecurityIndexRoute =
@@ -303,6 +318,12 @@ const AuthenticatedTaskPluginsIndexRoute =
   AuthenticatedTaskPluginsIndexRouteImport.update({
     id: '/task-plugins/',
     path: '/task-plugins/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTokenStatsIndexRoute =
+  AuthenticatedTokenStatsIndexRouteImport.update({
+    id: '/token-stats/',
+    path: '/token-stats/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedUsageLogsIndexRoute =
@@ -472,14 +493,17 @@ export interface FileRoutesByFullPath {
   '/keys/': typeof AuthenticatedKeysIndexRoute
   '/models/': typeof AuthenticatedModelsIndexRoute
   '/playground/': typeof AuthenticatedPlaygroundIndexRoute
+  '/plugin-providers/': typeof AuthenticatedPluginProvidersIndexRoute
+  '/plugin-routing/': typeof AuthenticatedPluginRoutingIndexRoute
+  '/plugin-services/': typeof AuthenticatedPluginServicesIndexRoute
   '/profile/': typeof AuthenticatedProfileIndexRoute
   '/redemption-codes/': typeof AuthenticatedRedemptionCodesIndexRoute
-  '/reverse-proxy/': typeof AuthenticatedReverseProxyIndexRoute
   '/security/': typeof AuthenticatedSecurityIndexRoute
   '/subscriptions/': typeof AuthenticatedSubscriptionsIndexRoute
   '/system-info/': typeof AuthenticatedSystemInfoIndexRoute
   '/system-settings/': typeof AuthenticatedSystemSettingsIndexRoute
   '/task-plugins/': typeof AuthenticatedTaskPluginsIndexRoute
+  '/token-stats/': typeof AuthenticatedTokenStatsIndexRoute
   '/usage-logs/': typeof AuthenticatedUsageLogsIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
   '/wallet/': typeof AuthenticatedWalletIndexRoute
@@ -536,14 +560,17 @@ export interface FileRoutesByTo {
   '/keys': typeof AuthenticatedKeysIndexRoute
   '/models': typeof AuthenticatedModelsIndexRoute
   '/playground': typeof AuthenticatedPlaygroundIndexRoute
+  '/plugin-providers': typeof AuthenticatedPluginProvidersIndexRoute
+  '/plugin-routing': typeof AuthenticatedPluginRoutingIndexRoute
+  '/plugin-services': typeof AuthenticatedPluginServicesIndexRoute
   '/profile': typeof AuthenticatedProfileIndexRoute
   '/redemption-codes': typeof AuthenticatedRedemptionCodesIndexRoute
-  '/reverse-proxy': typeof AuthenticatedReverseProxyIndexRoute
   '/security': typeof AuthenticatedSecurityIndexRoute
   '/subscriptions': typeof AuthenticatedSubscriptionsIndexRoute
   '/system-info': typeof AuthenticatedSystemInfoIndexRoute
   '/system-settings': typeof AuthenticatedSystemSettingsIndexRoute
   '/task-plugins': typeof AuthenticatedTaskPluginsIndexRoute
+  '/token-stats': typeof AuthenticatedTokenStatsIndexRoute
   '/usage-logs': typeof AuthenticatedUsageLogsIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
   '/wallet': typeof AuthenticatedWalletIndexRoute
@@ -604,14 +631,17 @@ export interface FileRoutesById {
   '/_authenticated/keys/': typeof AuthenticatedKeysIndexRoute
   '/_authenticated/models/': typeof AuthenticatedModelsIndexRoute
   '/_authenticated/playground/': typeof AuthenticatedPlaygroundIndexRoute
+  '/_authenticated/plugin-providers/': typeof AuthenticatedPluginProvidersIndexRoute
+  '/_authenticated/plugin-routing/': typeof AuthenticatedPluginRoutingIndexRoute
+  '/_authenticated/plugin-services/': typeof AuthenticatedPluginServicesIndexRoute
   '/_authenticated/profile/': typeof AuthenticatedProfileIndexRoute
   '/_authenticated/redemption-codes/': typeof AuthenticatedRedemptionCodesIndexRoute
-  '/_authenticated/reverse-proxy/': typeof AuthenticatedReverseProxyIndexRoute
   '/_authenticated/security/': typeof AuthenticatedSecurityIndexRoute
   '/_authenticated/subscriptions/': typeof AuthenticatedSubscriptionsIndexRoute
   '/_authenticated/system-info/': typeof AuthenticatedSystemInfoIndexRoute
   '/_authenticated/system-settings/': typeof AuthenticatedSystemSettingsIndexRoute
   '/_authenticated/task-plugins/': typeof AuthenticatedTaskPluginsIndexRoute
+  '/_authenticated/token-stats/': typeof AuthenticatedTokenStatsIndexRoute
   '/_authenticated/usage-logs/': typeof AuthenticatedUsageLogsIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
   '/_authenticated/wallet/': typeof AuthenticatedWalletIndexRoute
@@ -671,14 +701,17 @@ export interface FileRouteTypes {
     | '/keys/'
     | '/models/'
     | '/playground/'
+    | '/plugin-providers/'
+    | '/plugin-routing/'
+    | '/plugin-services/'
     | '/profile/'
     | '/redemption-codes/'
-    | '/reverse-proxy/'
     | '/security/'
     | '/subscriptions/'
     | '/system-info/'
     | '/system-settings/'
     | '/task-plugins/'
+    | '/token-stats/'
     | '/usage-logs/'
     | '/users/'
     | '/wallet/'
@@ -735,14 +768,17 @@ export interface FileRouteTypes {
     | '/keys'
     | '/models'
     | '/playground'
+    | '/plugin-providers'
+    | '/plugin-routing'
+    | '/plugin-services'
     | '/profile'
     | '/redemption-codes'
-    | '/reverse-proxy'
     | '/security'
     | '/subscriptions'
     | '/system-info'
     | '/system-settings'
     | '/task-plugins'
+    | '/token-stats'
     | '/usage-logs'
     | '/users'
     | '/wallet'
@@ -802,14 +838,17 @@ export interface FileRouteTypes {
     | '/_authenticated/keys/'
     | '/_authenticated/models/'
     | '/_authenticated/playground/'
+    | '/_authenticated/plugin-providers/'
+    | '/_authenticated/plugin-routing/'
+    | '/_authenticated/plugin-services/'
     | '/_authenticated/profile/'
     | '/_authenticated/redemption-codes/'
-    | '/_authenticated/reverse-proxy/'
     | '/_authenticated/security/'
     | '/_authenticated/subscriptions/'
     | '/_authenticated/system-info/'
     | '/_authenticated/system-settings/'
     | '/_authenticated/task-plugins/'
+    | '/_authenticated/token-stats/'
     | '/_authenticated/usage-logs/'
     | '/_authenticated/users/'
     | '/_authenticated/wallet/'
@@ -1098,6 +1137,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPlaygroundIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/plugin-providers/': {
+      id: '/_authenticated/plugin-providers/'
+      path: '/plugin-providers'
+      fullPath: '/plugin-providers/'
+      preLoaderRoute: typeof AuthenticatedPluginProvidersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/plugin-routing/': {
+      id: '/_authenticated/plugin-routing/'
+      path: '/plugin-routing'
+      fullPath: '/plugin-routing/'
+      preLoaderRoute: typeof AuthenticatedPluginRoutingIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/plugin-services/': {
+      id: '/_authenticated/plugin-services/'
+      path: '/plugin-services'
+      fullPath: '/plugin-services/'
+      preLoaderRoute: typeof AuthenticatedPluginServicesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/profile/': {
       id: '/_authenticated/profile/'
       path: '/profile'
@@ -1110,13 +1170,6 @@ declare module '@tanstack/react-router' {
       path: '/redemption-codes'
       fullPath: '/redemption-codes/'
       preLoaderRoute: typeof AuthenticatedRedemptionCodesIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/reverse-proxy/': {
-      id: '/_authenticated/reverse-proxy/'
-      path: '/reverse-proxy'
-      fullPath: '/reverse-proxy/'
-      preLoaderRoute: typeof AuthenticatedReverseProxyIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/security/': {
@@ -1152,6 +1205,13 @@ declare module '@tanstack/react-router' {
       path: '/task-plugins'
       fullPath: '/task-plugins/'
       preLoaderRoute: typeof AuthenticatedTaskPluginsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/token-stats/': {
+      id: '/_authenticated/token-stats/'
+      path: '/token-stats'
+      fullPath: '/token-stats/'
+      preLoaderRoute: typeof AuthenticatedTokenStatsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/usage-logs/': {
@@ -1415,13 +1475,16 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedKeysIndexRoute: typeof AuthenticatedKeysIndexRoute
   AuthenticatedModelsIndexRoute: typeof AuthenticatedModelsIndexRoute
   AuthenticatedPlaygroundIndexRoute: typeof AuthenticatedPlaygroundIndexRoute
+  AuthenticatedPluginProvidersIndexRoute: typeof AuthenticatedPluginProvidersIndexRoute
+  AuthenticatedPluginRoutingIndexRoute: typeof AuthenticatedPluginRoutingIndexRoute
+  AuthenticatedPluginServicesIndexRoute: typeof AuthenticatedPluginServicesIndexRoute
   AuthenticatedProfileIndexRoute: typeof AuthenticatedProfileIndexRoute
   AuthenticatedRedemptionCodesIndexRoute: typeof AuthenticatedRedemptionCodesIndexRoute
-  AuthenticatedReverseProxyIndexRoute: typeof AuthenticatedReverseProxyIndexRoute
   AuthenticatedSecurityIndexRoute: typeof AuthenticatedSecurityIndexRoute
   AuthenticatedSubscriptionsIndexRoute: typeof AuthenticatedSubscriptionsIndexRoute
   AuthenticatedSystemInfoIndexRoute: typeof AuthenticatedSystemInfoIndexRoute
   AuthenticatedTaskPluginsIndexRoute: typeof AuthenticatedTaskPluginsIndexRoute
+  AuthenticatedTokenStatsIndexRoute: typeof AuthenticatedTokenStatsIndexRoute
   AuthenticatedUsageLogsIndexRoute: typeof AuthenticatedUsageLogsIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
   AuthenticatedWalletIndexRoute: typeof AuthenticatedWalletIndexRoute
@@ -1443,14 +1506,18 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedKeysIndexRoute: AuthenticatedKeysIndexRoute,
   AuthenticatedModelsIndexRoute: AuthenticatedModelsIndexRoute,
   AuthenticatedPlaygroundIndexRoute: AuthenticatedPlaygroundIndexRoute,
+  AuthenticatedPluginProvidersIndexRoute:
+    AuthenticatedPluginProvidersIndexRoute,
+  AuthenticatedPluginRoutingIndexRoute: AuthenticatedPluginRoutingIndexRoute,
+  AuthenticatedPluginServicesIndexRoute: AuthenticatedPluginServicesIndexRoute,
   AuthenticatedProfileIndexRoute: AuthenticatedProfileIndexRoute,
   AuthenticatedRedemptionCodesIndexRoute:
     AuthenticatedRedemptionCodesIndexRoute,
-  AuthenticatedReverseProxyIndexRoute: AuthenticatedReverseProxyIndexRoute,
   AuthenticatedSecurityIndexRoute: AuthenticatedSecurityIndexRoute,
   AuthenticatedSubscriptionsIndexRoute: AuthenticatedSubscriptionsIndexRoute,
   AuthenticatedSystemInfoIndexRoute: AuthenticatedSystemInfoIndexRoute,
   AuthenticatedTaskPluginsIndexRoute: AuthenticatedTaskPluginsIndexRoute,
+  AuthenticatedTokenStatsIndexRoute: AuthenticatedTokenStatsIndexRoute,
   AuthenticatedUsageLogsIndexRoute: AuthenticatedUsageLogsIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
   AuthenticatedWalletIndexRoute: AuthenticatedWalletIndexRoute,

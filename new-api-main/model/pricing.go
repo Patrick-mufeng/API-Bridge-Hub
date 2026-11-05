@@ -25,29 +25,33 @@ type PricingPluginVariant struct {
 }
 
 type Pricing struct {
-	BillingPluginVariants  []PricingPluginVariant               `json:"billing_plugin_variants,omitempty"`
-	ModelName              string                               `json:"model_name"`
-	Description            string                               `json:"description,omitempty"`
-	Icon                   string                               `json:"icon,omitempty"`
-	Tags                   string                               `json:"tags,omitempty"`
-	VendorID               int                                  `json:"vendor_id,omitempty"`
-	QuotaType              int                                  `json:"quota_type"`
-	ModelRatio             float64                              `json:"model_ratio"`
-	ModelPrice             float64                              `json:"model_price"`
-	OwnerBy                string                               `json:"owner_by"`
-	CompletionRatio        float64                              `json:"completion_ratio"`
-	CacheRatio             *float64                             `json:"cache_ratio,omitempty"`
-	CreateCacheRatio       *float64                             `json:"create_cache_ratio,omitempty"`
-	ImageRatio             *float64                             `json:"image_ratio,omitempty"`
-	AudioRatio             *float64                             `json:"audio_ratio,omitempty"`
-	AudioCompletionRatio   *float64                             `json:"audio_completion_ratio,omitempty"`
-	EnableGroup            []string                             `json:"enable_groups"`
-	SupportedEndpointTypes []constant.EndpointType              `json:"supported_endpoint_types"`
-	BillingMode            string                               `json:"billing_mode,omitempty"`
-	BillingExpr            string                               `json:"billing_expr,omitempty"`
-	BillingUsageSchema     map[string]jsplugin.UsageFieldSchema `json:"billing_usage_schema,omitempty"`
-	BillingUsageExamples   []jsplugin.UsageExample              `json:"billing_usage_examples,omitempty"`
-	PricingVersion         string                               `json:"pricing_version,omitempty"`
+	BillingPluginVariants  []PricingPluginVariant  `json:"billing_plugin_variants,omitempty"`
+	ModelName              string                  `json:"model_name"`
+	Description            string                  `json:"description,omitempty"`
+	Icon                   string                  `json:"icon,omitempty"`
+	Tags                   string                  `json:"tags,omitempty"`
+	VendorID               int                     `json:"vendor_id,omitempty"`
+	QuotaType              int                     `json:"quota_type"`
+	ModelRatio             float64                 `json:"model_ratio"`
+	ModelPrice             float64                 `json:"model_price"`
+	OwnerBy                string                  `json:"owner_by"`
+	CompletionRatio        float64                 `json:"completion_ratio"`
+	CacheRatio             *float64                `json:"cache_ratio,omitempty"`
+	CreateCacheRatio       *float64                `json:"create_cache_ratio,omitempty"`
+	ImageRatio             *float64                `json:"image_ratio,omitempty"`
+	AudioRatio             *float64                `json:"audio_ratio,omitempty"`
+	AudioCompletionRatio   *float64                `json:"audio_completion_ratio,omitempty"`
+	EnableGroup            []string                `json:"enable_groups"`
+	SupportedEndpointTypes []constant.EndpointType `json:"supported_endpoint_types"`
+	// ContextLength and MaxOutputTokens mirror the upstream-declared budget so
+	// the model square can display it; 0 means the upstream declared none.
+	ContextLength        int                                  `json:"context_length,omitempty"`
+	MaxOutputTokens      int                                  `json:"max_output_tokens,omitempty"`
+	BillingMode          string                               `json:"billing_mode,omitempty"`
+	BillingExpr          string                               `json:"billing_expr,omitempty"`
+	BillingUsageSchema   map[string]jsplugin.UsageFieldSchema `json:"billing_usage_schema,omitempty"`
+	BillingUsageExamples []jsplugin.UsageExample              `json:"billing_usage_examples,omitempty"`
+	PricingVersion       string                               `json:"pricing_version,omitempty"`
 }
 
 type PricingVendor struct {
@@ -73,7 +77,25 @@ var (
 var (
 	modelSupportEndpointTypes = make(map[string][]constant.EndpointType)
 	modelSupportEndpointsLock = sync.RWMutex{}
+
+	// modelContextWindows carries the upstream-declared context budget per relay
+	// model name. Channels report it through their settings; a plugin
+	// provider's models carry it from the plugin's own catalogue; models without a
+	// declared budget are absent, so /v1/models omits the fields instead of
+	// advertising a fabricated window.
+	modelContextWindows     = make(map[string]dto.ModelContextWindow)
+	modelContextWindowsLock = sync.RWMutex{}
 )
+
+// GetModelContextWindow returns the declared context budget for a relay model.
+// A zero ContextLength means the upstream never declared one. Service panels
+// spell model names with their own casing while the relay lists them lowercase,
+// so lookups are case-insensitive.
+func GetModelContextWindow(model string) dto.ModelContextWindow {
+	modelContextWindowsLock.RLock()
+	defer modelContextWindowsLock.RUnlock()
+	return modelContextWindows[strings.ToLower(model)]
+}
 
 func GetPricing() []Pricing {
 	if time.Since(lastGetPricingTime) > time.Minute*1 || len(pricingMap) == 0 {
@@ -189,6 +211,42 @@ func appendPricingEndpoint(endpoints []string, endpoint string) []string {
 	return append(endpoints, endpoint)
 }
 
+// loadModelContextWindows rebuilds the relay-model context budget map from the
+// channels that declare one. Runs inside updatePricing; a channel's own
+// model mapping already maps exposed names to upstream ones, so the stored keys
+// are the names clients request. When several channels serve the same exposed
+// model, the largest declared window wins, matching how the relay reports the
+// most capable route.
+func loadModelContextWindows() {
+	next := make(map[string]dto.ModelContextWindow)
+	var channels []*Channel
+	if err := DB.Find(&channels).Error; err != nil {
+		common.SysLog(common.LogText("load model context windows error: %v", err))
+		return
+	}
+	for _, channel := range channels {
+		if channel.Status != common.ChannelStatusEnabled {
+			continue
+		}
+		for model, window := range channel.GetOtherSettings().ModelContextWindows {
+			if window.ContextLength <= 0 && window.MaxOutputTokens <= 0 {
+				continue
+			}
+			// Store lowercase so lookups match regardless of the casing a
+			// service panel used when it reported the model name.
+			normalized := strings.ToLower(model)
+			current := next[normalized]
+			next[normalized] = dto.ModelContextWindow{
+				ContextLength:   max(current.ContextLength, window.ContextLength),
+				MaxOutputTokens: max(current.MaxOutputTokens, window.MaxOutputTokens),
+			}
+		}
+	}
+	modelContextWindowsLock.Lock()
+	modelContextWindows = next
+	modelContextWindowsLock.Unlock()
+}
+
 func updatePricing() {
 	//modelRatios := common.GetModelRatios()
 	enableAbilities, err := GetAllEnableAbilityWithChannels()
@@ -215,6 +273,9 @@ func updatePricing() {
 
 	// 初始化默认供应商映射
 	initDefaultVendorMapping(metaMap, vendorMap, enableAbilities)
+
+	// 收集各渠道声明的模型上下文预算，供 /v1/models 输出
+	loadModelContextWindows()
 
 	// 构建对前端友好的供应商列表
 	vendorsList = make([]PricingVendor, 0, len(vendorMap))
@@ -326,10 +387,13 @@ func updatePricing() {
 	pricingMap = make([]Pricing, 0)
 	pluginGeneration := jsplugin.DefaultRegistry.Generation()
 	for model, groups := range modelGroupsMap {
+		window := GetModelContextWindow(model)
 		pricing := Pricing{
 			ModelName:              model,
 			EnableGroup:            groups.Items(),
 			SupportedEndpointTypes: modelSupportEndpointTypes[model],
+			ContextLength:          window.ContextLength,
+			MaxOutputTokens:        window.MaxOutputTokens,
 		}
 
 		// 补充模型元数据（描述、标签、供应商、状态）

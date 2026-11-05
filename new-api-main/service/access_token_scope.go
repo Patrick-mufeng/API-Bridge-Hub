@@ -104,6 +104,10 @@ var accessTokenStaticResources = []AccessTokenResource{
 		accessTokenView("View reverse proxy services, their runtime status, and logs."),
 		accessTokenEdit("Start, stop, and rebuild reverse proxy services, and register their relay channels."),
 	}},
+	{Resource: "plugin_provider", LabelKey: "Plugin providers", group: AccessTokenGroupAdmin, minRole: common.RoleAdminUser, Actions: []authz.ActionDefinition{
+		accessTokenView("View the plugins installed, the providers they serve, their accounts and their usage."),
+		accessTokenEdit("Install, update, switch off, and remove plugins; sign accounts in and out; register channels; press the daily check-in."),
+	}},
 	{Resource: "option", LabelKey: "System settings", group: AccessTokenGroupSystem, minRole: common.RoleRootUser, Actions: []authz.ActionDefinition{
 		accessTokenView("View system settings, custom OAuth providers, and price sync sources."),
 		accessTokenEdit("Change system settings and custom OAuth providers, and sync prices."),

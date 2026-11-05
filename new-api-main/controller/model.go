@@ -38,7 +38,15 @@ func init() {
 		if i == constant.APITypeAIProxyLibrary {
 			continue
 		}
+		// A plugin provider's models are whatever its plugins list at run
+		// time: it has no static list to build here.
+		if i == constant.APITypePluginProvider {
+			continue
+		}
 		adaptor := relay.GetAdaptor(i)
+		if adaptor == nil {
+			continue
+		}
 		channelName := adaptor.GetChannelName()
 		modelNames := adaptor.GetModelList()
 		for _, modelName := range modelNames {
@@ -97,7 +105,7 @@ func init() {
 	channelId2Models = make(map[int][]string)
 	for i := 1; i <= constant.ChannelTypeDummy; i++ {
 		apiType, success := common.ChannelType2APIType(i)
-		if !success || apiType == constant.APITypeAIProxyLibrary {
+		if !success || apiType == constant.APITypeAIProxyLibrary || apiType == constant.APITypePluginProvider {
 			if plugin, ok := jsplugin.DefaultRegistry.GetByChannelType(i); ok {
 				channelId2Models[i] = append([]string(nil), plugin.Meta.Models...)
 			}
@@ -176,6 +184,13 @@ func buildOpenAIModel(modelName string, ownerByModel map[string]string) dto.Open
 		oaiModel.OwnedBy = owner
 	}
 	oaiModel.SupportedEndpointTypes = model.GetModelSupportEndpointTypes(modelName)
+	// Report the upstream-declared context budget so clients size their prompts
+	// from the real window instead of guessing one. Models whose upstream never
+	// declared a budget keep both fields absent (omitempty).
+	if window := model.GetModelContextWindow(modelName); window.ContextLength > 0 || window.MaxOutputTokens > 0 {
+		oaiModel.ContextLength = window.ContextLength
+		oaiModel.MaxOutputTokens = window.MaxOutputTokens
+	}
 	return oaiModel
 }
 

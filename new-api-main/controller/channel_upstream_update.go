@@ -18,6 +18,7 @@ import (
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/pkg/jsplugin"
+	"github.com/QuantumNous/new-api/pkg/pluginhost"
 	"github.com/QuantumNous/new-api/relay/channel/advancedcustom"
 	"github.com/QuantumNous/new-api/relay/channel/gemini"
 	"github.com/QuantumNous/new-api/relay/channel/ollama"
@@ -370,6 +371,14 @@ func fetchChannelUpstreamModelIDs(channel *model.Channel) ([]string, error) {
 		}
 		return normalizeModelNames(plugin.Meta.Models), nil
 	}
+	// A plugin provider's models are the plugin's own catalogue: there is no
+	// /v1/models to ask, because the upstream is a vendor each plugin speaks
+	// to in its own way. Asking the plugin is both the right answer and the
+	// only one that works.
+	if channel.Type == constant.ChannelTypePluginProvider {
+		return pluginProviderModelIDs(channel)
+	}
+
 	baseURL := constant.GetChannelBaseURL(channel.Type)
 	if channel.GetBaseURL() != "" {
 		baseURL = channel.GetBaseURL()
@@ -463,6 +472,44 @@ func fetchChannelUpstreamModelIDs(channel *model.Channel) ([]string, error) {
 		return item.ID
 	})
 	return normalizeModelNames(ids), nil
+}
+
+// pluginProviderModelIDs are the models the plugin behind a channel lists,
+// in the same namespaced form the channel itself uses so the two can be
+// compared.
+func pluginProviderModelIDs(channel *model.Channel) ([]string, error) {
+	provider := strings.TrimSpace(channel.GetBaseURL())
+	if provider == "" {
+		return nil, fmt.Errorf("the channel names no plugin provider")
+	}
+	ps, err := pluginhost.Providers(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range ps {
+		if p.ID != provider {
+			continue
+		}
+		// the channel names its models with a prefix (wb:, qd:…) so that two
+		// providers serving one id don't collide. The plugin lists bare ids,
+		// so the prefix is taken from a model the channel already carries:
+		// comparing the two lists depends on them being in the same form.
+		prefix := ""
+		if existing := channel.GetModels(); len(existing) > 0 {
+			for _, m := range p.Models {
+				if strings.HasSuffix(existing[0], m.ID) && len(existing[0]) > len(m.ID) {
+					prefix = strings.TrimSuffix(existing[0], m.ID)
+					break
+				}
+			}
+		}
+		out := make([]string, 0, len(p.Models))
+		for _, m := range p.Models {
+			out = append(out, prefix+m.ID)
+		}
+		return normalizeModelNames(out), nil
+	}
+	return nil, fmt.Errorf("no installed plugin serves the provider %q", provider)
 }
 
 func fetchAdvancedCustomUpstreamModelIDs(channel *model.Channel, baseURL string) ([]string, error) {

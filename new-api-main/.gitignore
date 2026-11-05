@@ -10,6 +10,12 @@ build
 *.db-journal
 *.db-shm
 *.db-wal
+# Database backups carry every user, channel and API key: *.db alone does not
+# match a copy renamed to .bak-<date>, which would go straight into a public
+# repository (#the two that were sitting here were 12 MB each).
+*.db.bak*
+*.db.bak
+*.db.backup*
 logs
 web/dist
 web/node_modules

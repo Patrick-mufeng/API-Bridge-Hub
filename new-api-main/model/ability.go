@@ -329,6 +329,24 @@ func (channel *Channel) UpdateAbilities(tx *gorm.DB) error {
 	return nil
 }
 
+// AddAbilities records routes for a channel without touching the channel
+// itself: a model id the channel answers to besides its own list.
+//
+// A row that is already there is left alone, so publishing the same ids
+// again is harmless, and a priority an operator set by hand is not
+// overwritten by a re-registration.
+func AddAbilities(rows []Ability) error {
+	if len(rows) == 0 {
+		return nil
+	}
+	for _, chunk := range lo.Chunk(rows, 50) {
+		if err := DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&chunk).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func UpdateAbilityStatus(channelId int, status bool) error {
 	return DB.Model(&Ability{}).Where("channel_id = ?", channelId).Select("enabled").Update("enabled", status).Error
 }

@@ -61,6 +61,12 @@ const (
 	ChannelTypeTaskPlugin     = 61
 	ChannelTypeVLLM           = 62
 	ChannelTypeSGLang         = 63
+	// ChannelTypePluginProvider is a provider served by a plugin-host plugin
+	// (see pkg/pluginhost): the plugin signs the account in, lists the
+	// models and makes each request, and new-api keeps the channel, the
+	// routing and the billing around it. BaseURL is the plugin's provider
+	// id, Key is the account the channel's requests go as.
+	ChannelTypePluginProvider = 64
 	ChannelTypeDummy          // this one is only for count, do not add any channel after this
 
 )
@@ -132,6 +138,7 @@ var ChannelBaseURLs = []string{
 	"",                                          //61
 	"",                                          //62
 	"",                                          //63
+	"",                                          //64  plugin provider (no host: the plugin sends)
 }
 
 func GetChannelBaseURL(channelType int) string {
@@ -202,6 +209,7 @@ var ChannelTypeNames = map[int]string{
 	ChannelTypeTaskPlugin:     "Task Plugin",
 	ChannelTypeVLLM:           "vLLM",
 	ChannelTypeSGLang:         "SGLang",
+	ChannelTypePluginProvider: "Plugin Provider",
 }
 
 func GetChannelTypeName(channelType int) string {
