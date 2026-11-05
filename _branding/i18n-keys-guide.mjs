@@ -12,8 +12,8 @@ const NEW_KEYS = {
   'OpenAI-compatible endpoint (remember the /v1 suffix):':
     'OpenAI 兼容接口地址（注意结尾的 /v1 不能少）：',
   'Step 3. Pick a model': '第 3 步：选择模型',
-  'Each upstream channel prefixes its models (wb:, qd:, cl:, ocz:, tr:, cg: ...). Open Model Square for the full catalog.':
-    '各上游渠道的模型带前缀（wb:、qd:、cl:、ocz:、tr:、cg: 等），完整列表在「模型广场」查看。',
+  'Each upstream channel prefixes its models (wb:, qd:, cl:, tr:, cg: ...). Open Model Square for the full catalog.':
+    '各上游渠道的模型带前缀（wb:、qd:、cl:、tr:、cg: 等），完整列表在「模型广场」查看。',
   'Example request': '调用示例',
   'Copy example': '复制示例',
   'sk-your-api-key': 'sk-你的密钥',

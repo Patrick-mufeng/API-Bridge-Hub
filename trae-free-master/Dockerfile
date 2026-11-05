@@ -7,7 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONIOENCODING=utf-8 \
     HOME=/home/app \
     HOST=0.0.0.0 \
-    PORT=8015 \
+    PORT=4513 \
     RELAY_BUILD_REVISION=${RELAY_BUILD_REVISION}
 
 LABEL org.opencontainers.image.title="trae-free" \
@@ -28,9 +28,9 @@ RUN chown -R relay:relay /app /home/app && chmod -R u+rwX,go+rX /app
 
 USER relay
 
-EXPOSE 8015
+EXPOSE 4513
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('PORT', '8015') + '/healthz', timeout=2)"
+    CMD python -c "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('PORT', '4513') + '/healthz', timeout=2)"
 
-CMD ["sh", "-c", "uvicorn src.main:app --host ${HOST:-0.0.0.0} --port ${PORT:-8015}"]
+CMD ["sh", "-c", "uvicorn src.main:app --host ${HOST:-0.0.0.0} --port ${PORT:-4513}"]

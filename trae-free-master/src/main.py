@@ -90,7 +90,7 @@ logger = logging.getLogger("trae-free")
 _LOG_RING = logbuf.install_ring_handler(logger)
 
 HOST = os.environ.get("HOST", "0.0.0.0")
-PORT = int(os.environ.get("PORT", "8015"))
+PORT = int(os.environ.get("PORT", "4513"))
 API_KEYS = [k.strip() for k in os.environ.get("RELAY_API_KEYS", "").split(",") if k.strip()]
 UPSTREAM_MODE = (os.environ.get("UPSTREAM_MODE", "remote") or "remote").lower()
 _VALID_UPSTREAM_MODES = (

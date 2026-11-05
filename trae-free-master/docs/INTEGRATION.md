@@ -1,13 +1,13 @@
 # trae-free 接入说明
 
 > 本文档基于本机实测生成，所有示例均已跑通。
-> 服务地址：`http://127.0.0.1:8015`，认证方式 `web-login`，上游端点 `remote`。
+> 服务地址：`http://127.0.0.1:4513`，认证方式 `web-login`，上游端点 `remote`。
 
 ## 一、连接信息
 
 | 项 | 值 |
 |---|---|
-| Base URL | `http://127.0.0.1:8015/v1` |
+| Base URL | `http://127.0.0.1:4513/v1` |
 | API Key | `your-master-key`（在 .env 的 RELAY_API_KEYS 中，**建议改掉**） |
 | 协议 | OpenAI Chat Completions + Responses |
 | 流式 | 支持 SSE，带 1 秒心跳注释帧 |
@@ -53,7 +53,7 @@ model_provider = "trae-relay"
 model = "glm-5.3"
 
 [model_providers.trae-relay]
-base_url = "http://127.0.0.1:8015/v1"
+base_url = "http://127.0.0.1:4513/v1"
 wire_api = "responses"
 requires_openai_auth = true
 ```
@@ -65,7 +65,7 @@ requires_openai_auth = true
 ```python
 from openai import OpenAI
 
-client = OpenAI(base_url="http://127.0.0.1:8015/v1", api_key="your-master-key")
+client = OpenAI(base_url="http://127.0.0.1:4513/v1", api_key="your-master-key")
 
 # 非流式
 r = client.chat.completions.create(
@@ -91,7 +91,7 @@ for chunk in stream:
 import OpenAI from "openai";
 
 const client = new OpenAI({
-  baseURL: "http://127.0.0.1:8015/v1",
+  baseURL: "http://127.0.0.1:4513/v1",
   apiKey: "your-master-key",
 });
 
@@ -105,7 +105,7 @@ console.log(r.choices[0].message.content);
 ### 4. curl
 
 ```bash
-curl http://127.0.0.1:8015/v1/chat/completions \
+curl http://127.0.0.1:4513/v1/chat/completions \
   -H "Authorization: Bearer your-master-key" \
   -H "Content-Type: application/json" \
   -d '{"model":"glm-5.3","stream":true,
@@ -115,7 +115,7 @@ curl http://127.0.0.1:8015/v1/chat/completions \
 ### 5. 作为 new-api / one-api 的上游渠道
 
 - 类型：OpenAI
-- Base URL：`http://127.0.0.1:8015/v1`
+- Base URL：`http://127.0.0.1:4513/v1`
 - 密钥：`your-master-key`
 
 > 若前面还挂 new-api，需确认它的 Responses 渠道把 `/v1/responses` 原样透传。
@@ -213,7 +213,7 @@ curl http://127.0.0.1:8015/v1/chat/completions \
 ## 九、注意事项
 
 1. **改掉默认密钥**：`RELAY_API_KEYS=your-master-key` 写在 .env
-2. **别暴露 8015 到公网**：项目按内网设计，必须公网就加 TLS 反代
+2. **别暴露 4513 到公网**：项目按内网设计，必须公网就加 TLS 反代
 3. **.env 和 data 目录是敏感文件**（JWT / 刷新令牌），勿提交勿分享
 4. **长上下文**：remote 通道约 500K 字符上游会静默断流，relay 在 480K 处裁剪
 5. **并发**：每账号默认 2 个并行会话，多 bot 请开多账号轮询
@@ -221,7 +221,7 @@ curl http://127.0.0.1:8015/v1/chat/completions \
 
 ## 十、控制台
 
-`http://127.0.0.1:8015/web/login`
+`http://127.0.0.1:4513/web/login`
 
 - **概览**：用量图表、服务状态
 - **账号与签到**：授权登录、每日签到、积分

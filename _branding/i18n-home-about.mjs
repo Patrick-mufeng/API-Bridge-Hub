@@ -17,7 +17,7 @@ const NEW_KEYS = {
   'OpenAI-compatible /v1 — works with common clients out of the box.':
     'OpenAI 兼容的 /v1 接口，常见客户端开箱即用',
   'Per-channel prefixes': '渠道前缀',
-  'wb:, qd:, cl:, ocz:, tr:, cg: — pick the exact upstream you want.':
+  'wb:, qd:, cl:, tr:, cg: — pick the exact upstream you want.':
     '模型带渠道前缀（wb:、qd: 等），可明确指定使用哪个上游',
   'Token analytics': 'Token 统计',
   'The dashboard tracks token usage per model and per key.':

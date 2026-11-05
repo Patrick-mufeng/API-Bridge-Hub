@@ -8,7 +8,7 @@
   <img alt="tests" src="https://img.shields.io/badge/tests-848%20passed-brightgreen">
   <img alt="python" src="https://img.shields.io/badge/python-3.11%2B-blue">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-lightgrey">
-  <img alt="port" src="https://img.shields.io/badge/port-8015-informational">
+  <img alt="port" src="https://img.shields.io/badge/port-4513-informational">
 </p>
 
 ![trae-free 控制台](docs/screenshot-overview.png)
@@ -75,7 +75,7 @@
 | `env` | 从 `.env` 读取 TRAE_TOKEN / TRAE_REFRESH_TOKEN / TRAE_USER_ID |
 | `manual` | 网页抓包得到的 Cloud-IDE-JWT |
 | `cli` | 本地 Trae CLI 子进程，不需要 JWT |
-| `web-login` | 浏览器授权登录，打开 `http://服务器:8015/web/login` 后在页面完成授权 |
+| `web-login` | 浏览器授权登录，打开 `http://服务器:4513/web/login` 后在页面完成授权 |
 
 ## 快速开始
 
@@ -83,7 +83,7 @@
 cp .env.example .env
 # 编辑 .env 配置 TRAE_AUTH_SOURCE 和上游模式
 pip install -r requirements.txt
-uvicorn src.main:app --host 0.0.0.0 --port 8015
+uvicorn src.main:app --host 0.0.0.0 --port 4513
 ```
 
 开发环境使用 `pip install -r requirements-dev.txt`，Windows TraeWork native
@@ -112,7 +112,7 @@ docker compose -f docker-compose.image.yml up -d
 
 预构建镜像的 Compose 文件不依赖外部 `new-api` 网络。如果 new-api 也在 Docker
 中，可通过宿主地址访问 relay，或显式把两者加入同一网络。宿主端口由
-`RELAY_PORT` 控制；容器监听端口由 `.env` 的 `PORT` 控制，两者默认都是 `8015`。
+`RELAY_PORT` 控制；容器监听端口由 `.env` 的 `PORT` 控制，两者默认都是 `4513`。
 
 ### 从源码构建（开发或离线场景）
 
@@ -123,7 +123,7 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-容器默认监听 `8015` 端口。`RELAY_PORT` 修改宿主机发布端口，不修改容器内
+容器默认监听 `4513` 端口。`RELAY_PORT` 修改宿主机发布端口，不修改容器内
 监听端口；调整端口映射后需执行 `docker compose up -d --force-recreate`，
 仅重启旧容器不会改变映射。
 Actions 发布的镜像会把提交 SHA 写入 `RELAY_BUILD_REVISION` 镜像 label，并由
@@ -139,7 +139,7 @@ Actions 发布的镜像会把提交 SHA 写入 `RELAY_BUILD_REVISION` 镜像 lab
 
 ### 使用步骤
 
-1. 打开 `http://127.0.0.1:8015/web/login`（relay 需与浏览器在同一台电脑）
+1. 打开 `http://127.0.0.1:4513/web/login`（relay 需与浏览器在同一台电脑）
 2. 进入「账号池」页，确认「授权登录」卡片右侧显示 **监听中 · 端口 8765**
 3. 点击「使用 Trae 网页授权登录」，浏览器弹出 Trae 授权页，确认登录
 4. 回调自动打到 relay，凭据写入 `data/accounts.json`，页面自动刷新显示账号
@@ -148,7 +148,7 @@ Actions 发布的镜像会把提交 SHA 写入 `RELAY_BUILD_REVISION` 镜像 lab
 > 后重启即可；也可以展开「手动填写凭证」直接粘贴 Token。
 
 > **Docker 部署注意**：监听器绑定的是容器内的 `127.0.0.1`，而默认 compose 只
-> 映射了 8015 端口，因此宿主机浏览器无法回调到容器内的监听器，页面会一直显示
+> 映射了 4513 端口，因此宿主机浏览器无法回调到容器内的监听器，页面会一直显示
 > 「未监听」（这不影响反代本身）。容器部署请改用「手动填写凭证」，或自行把
 > `WEB_LOGIN_LISTENER_PORT` 映射到宿主机并在配置中保持一致。
 
@@ -235,7 +235,7 @@ Chat Completions / Responses 返回明确的 `503`，不会绕回当前管理账
 也可通过管理 API 设置：
 
 ```bash
-curl -X POST http://127.0.0.1:8015/api/accounts/model-enabled \
+curl -X POST http://127.0.0.1:4513/api/accounts/model-enabled \
   -H 'Content-Type: application/json' \
   -d '{"account_id":"你的账号ID","enabled":false}'
 ```
@@ -245,7 +245,7 @@ curl -X POST http://127.0.0.1:8015/api/accounts/model-enabled \
 
 ## 使用方式
 
-服务启动后监听 `http://127.0.0.1:8015`，OpenAI 兼容接口在 `/v1` 下。
+服务启动后监听 `http://127.0.0.1:4513`，OpenAI 兼容接口在 `/v1` 下。
 如果设置了 `RELAY_API_KEYS`，请求需带 `Authorization: Bearer <key>`；
 `/v1/models` 等只读发现接口与 Web 控制台不需要密钥。
 
@@ -261,17 +261,17 @@ curl -X POST http://127.0.0.1:8015/api/accounts/model-enabled \
 | `GET` | `/healthz` | 健康检查 |
 
 `/models`、`/chat/completions` 等不带 `/v1` 的别名同样可用，便于把
-自定义模型 Base URL 直接填成 `http://主机:8015`。
+自定义模型 Base URL 直接填成 `http://主机:4513`。
 
 ### curl
 
 ```bash
 # 模型列表
-curl http://127.0.0.1:8015/v1/models \
+curl http://127.0.0.1:4513/v1/models \
   -H "Authorization: Bearer $RELAY_API_KEYS"
 
 # 非流式对话
-curl http://127.0.0.1:8015/v1/chat/completions \
+curl http://127.0.0.1:4513/v1/chat/completions \
   -H "Authorization: Bearer $RELAY_API_KEYS" \
   -H "Content-Type: application/json" \
   -d '{
@@ -281,7 +281,7 @@ curl http://127.0.0.1:8015/v1/chat/completions \
   }'
 
 # 流式对话
-curl -N http://127.0.0.1:8015/v1/chat/completions \
+curl -N http://127.0.0.1:4513/v1/chat/completions \
   -H "Authorization: Bearer $RELAY_API_KEYS" \
   -H "Content-Type: application/json" \
   -d '{"model":"auto","stream":true,"messages":[{"role":"user","content":"数到三"}]}'
@@ -312,7 +312,7 @@ curl -N http://127.0.0.1:8015/v1/chat/completions \
 from openai import OpenAI
 
 client = OpenAI(
-    base_url="http://127.0.0.1:8015/v1",
+    base_url="http://127.0.0.1:4513/v1",
     api_key="your-master-key",   # 与 .env 的 RELAY_API_KEYS 一致
 )
 
@@ -339,7 +339,7 @@ for chunk in client.chat.completions.create(
 import OpenAI from "openai";
 
 const client = new OpenAI({
-  baseURL: "http://127.0.0.1:8015/v1",
+  baseURL: "http://127.0.0.1:4513/v1",
   apiKey: "your-master-key",
 });
 
@@ -359,7 +359,7 @@ model_provider = "trae-relay"
 model = "glm-5.3"
 
 [model_providers.trae-relay]
-base_url = "http://127.0.0.1:8015/v1"
+base_url = "http://127.0.0.1:4513/v1"
 wire_api = "responses"
 requires_openai_auth = true
 ```
@@ -370,7 +370,7 @@ Codex 走 `/v1/responses`，relay 会把 Responses 的 `input`、扁平 function
 
 ### 接入 new-api / 其他网关
 
-- Base URL 填 `http://<relay 主机>:8015/v1`，类型选 OpenAI 兼容。
+- Base URL 填 `http://<relay 主机>:4513/v1`，类型选 OpenAI 兼容。
 - 需要 Responses 通道时，确保中间层把 `/v1/responses` **原样转发**，
   不要降级成 Chat Completions。
 - relay 默认设计为内网部署；对外暴露时请设置 `RELAY_API_KEYS` 并加 TLS 反代。
@@ -517,18 +517,18 @@ model_provider = "trae-relay"
 model = "glm-5.3"
 
 [model_providers.trae-relay]
-base_url = "http://服务器:8015/v1"
+base_url = "http://服务器:4513/v1"
 wire_api = "responses"
 requires_openai_auth = true
 ```
 
-若前面还有 new-api，应确保其 Responses 渠道把 `/v1/responses` 原样转发到本 relay；relay 地址自身则是 `http://服务器:8015/v1`。
+若前面还有 new-api，应确保其 Responses 渠道把 `/v1/responses` 原样转发到本 relay；relay 地址自身则是 `http://服务器:4513/v1`。
 
 relay 支持两种连续会话方式：客户端可以在每轮重放完整 `input` 历史，也可以只发送新的输入或工具结果并携带上一轮返回的 `previous_response_id`。后一种方式会从有 TTL 和容量上限的进程内缓存恢复用户消息、assistant 输出、工具调用及绑定；客户端即使同时重放完整历史也会进行重叠去重。`store: false` 不写入缓存，未知、过期、容器重启后失效或超过缓存上限的 response id 会返回明确的 `400 previous_response_id` 错误。
 
 ## 网页管理界面（Web 控制台）
 
-启动后访问 `http://127.0.0.1:8015/web/login`。控制台采用像素终端风格（深色 / 浅色可切换），左侧纵向导航六个页面：
+启动后访问 `http://127.0.0.1:4513/web/login`。控制台采用像素终端风格（深色 / 浅色可切换），左侧纵向导航六个页面：
 
 - **概览**（默认首页）：总 tokens、输入 / 输出 / 缓存 tokens、今日用量、有效账号数；按日期柱状图（7 / 14 / 30 天）、服务状态（版本、运行时长、上游端点、自动路由、轮询、1M、自动签到、并发中请求）和按日期汇总表。数据来自 `GET /api/overview?days=N`，每日汇总持久化在 `data/usage_stats.json`，不受 100 条消费记录上限影响
 - **账号池**：上方是授权登录（**点一下即完成，无需下载任何脚本**；也可展开手动填写凭证）与自动签到（启用开关、每日时间、立即执行、下次 / 上次执行与结果），下方是整宽账号列表（账号、用户 ID、状态、有效期、通用积分、签到状态，单账号签到 / 切换 / 删除，以及查询签到状态、查询全部积分、一键轮询签到）
@@ -542,7 +542,7 @@ relay 支持两种连续会话方式：客户端可以在每轮重放完整 `inp
 
 ## 使用注意事项
 
-- **网络边界**：本项目设计为内网部署。不要把 8015 端口直接暴露到公网；如必须公网访问，请设置 `RELAY_API_KEYS` 并在前面加 TLS 反代。管理接口和模型测试接口对内网地址免鉴权。
+- **网络边界**：本项目设计为内网部署。不要把 4513 端口直接暴露到公网；如必须公网访问，请设置 `RELAY_API_KEYS` 并在前面加 TLS 反代。管理接口和模型测试接口对内网地址免鉴权。
 - **敏感数据**：`.env` 与 `data/`（`accounts.json`、`usage_records.json`）包含 JWT、刷新令牌和账号信息，已在 `.gitignore` 和 `.dockerignore` 中排除，切勿提交或分享。
 - **工具执行在调用端**：relay 只转发工具调用和结果，不会替客户端执行命令或写文件。模型声称“已下载 / 已写入”但本地没有文件，说明客户端没有真正执行工具，请检查客户端是否把 `tools` 发给 relay、是否回传了 `role: "tool"` 结果。
 - **端点选择**：不想手动切换时打开「自动路由」；需要工具调用时优先用 IDE Agent 或 Remote。IDE Raw 已从正式控制台和打包预设中移除，个人账号不要选择 `UPSTREAM_MODE=raw`。切换端点或开关后无需重启，立即生效。
@@ -609,7 +609,7 @@ Remote `chat_sessions` 两步会话、IDE/Solo `llm_utils_chat`、raw v2 桥接�
 - **登录流程改造**：移除「下载脚本手动运行」的登录方式，改为 relay 进程内监听回调端口。
 - **模型目录**：模型列表改为表格，展示上下文窗口、积分倍率与折扣、能力标记和思考档位。
 - **用量可视化**：用量统计页新增每日 Token 柱状图与图例。
-- **依赖与端口**：默认端口调整为 `8015`；CSS/JS 使用内容哈希避免缓存陈旧。
+- **依赖与端口**：默认端口调整为 `4513`；CSS/JS 使用内容哈希避免缓存陈旧。
 
 上游版权与 MIT 许可条款完整保留在 [LICENSE](LICENSE) 中。
 

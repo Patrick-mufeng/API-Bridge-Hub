@@ -1,4 +1,4 @@
-"""The relay port must be 8015 everywhere it is declared.
+"""The relay port must be 4513 everywhere it is declared.
 
 Five places declare or publish this port and they have to agree:
 
@@ -24,7 +24,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-EXPECTED_PORT = "8015"
+EXPECTED_PORT = "4513"
 
 
 class RelayPortDefaultTests(unittest.TestCase):

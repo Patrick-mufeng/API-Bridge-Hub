@@ -7,7 +7,7 @@ services:
       - path: .env
         required: true
     ports:
-      - "${RELAY_PORT:-8015}:${PORT:-8015}"
+      - "${RELAY_PORT:-4513}:${PORT:-4513}"
     volumes:
       - ./.env:/app/.env
       - ./data:/app/data
