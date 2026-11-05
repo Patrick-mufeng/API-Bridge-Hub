@@ -223,6 +223,10 @@ export function createBridgeServer(state: BridgeState): Server {
         object: 'model',
         created: 0,
         owned_by: 'commandcode',
+        // The upstream catalog declares this per model; without it every client
+        // has to guess the window. Omitted when the upstream did not declare one.
+        ...(m.contextWindow > 0 ? { context_length: m.contextWindow } : {}),
+        ...(cfg.maxTokens > 0 ? { max_output_tokens: cfg.maxTokens } : {}),
       })),
     })
   }

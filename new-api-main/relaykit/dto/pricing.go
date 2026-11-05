@@ -9,6 +9,11 @@ type OpenAIModels struct {
 	Created                int                  `json:"created"`
 	OwnedBy                string               `json:"owned_by"`
 	SupportedEndpointTypes []types.EndpointType `json:"supported_endpoint_types"`
+	// ContextLength and MaxOutputTokens mirror the upstream-declared context
+	// budget. Clients size their prompts from these, so leaving them out makes
+	// every consumer fall back to a guessed window.
+	ContextLength   int `json:"context_length,omitempty"`
+	MaxOutputTokens int `json:"max_output_tokens,omitempty"`
 }
 
 type AnthropicModel struct {
