@@ -96,7 +96,7 @@ export function ConnectionGuide(props: ConnectionGuideProps) {
     {
       title: t('Step 3. Pick a model'),
       description: t(
-        'Each upstream channel prefixes its models (wb:, qd:, cl:, ocz:, tr:, cg: ...). Open Model Square for the full catalog.'
+        'Each upstream channel prefixes its models (wb:, qd:, cl:, tr:, cg: ...). Open Model Square for the full catalog.'
       ),
     },
   ]

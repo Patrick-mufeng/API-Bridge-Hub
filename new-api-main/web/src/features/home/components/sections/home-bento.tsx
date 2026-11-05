@@ -22,7 +22,6 @@ import { ArrowRight, Check, Copy, Terminal } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { Button } from '@/components/ui/button'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { useStatus } from '@/hooks/use-status'
 import { getUserModels } from '@/lib/api'
@@ -30,13 +29,13 @@ import { requireServerSuccess } from '@/lib/server-error-message'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
-// The reverse-proxy services behind this relay. Keep in sync with
-// data/reverse-proxy/services/*.json manifests.
+// The subscriptions behind this relay, each a plugin provider registered
+// as channels under the prefix shown. Kept here as a short list rather than
+// derived, because it is a label on a page and not the routing table.
 const RELAY_CHANNELS = [
   { name: 'WorkBuddy', prefix: 'wb:' },
   { name: 'Qoder', prefix: 'qd:' },
   { name: 'Cline', prefix: 'cl:' },
-  { name: 'OpenCodeZ', prefix: 'ocz:' },
   { name: 'Trae', prefix: 'tr:' },
   { name: 'CmdGo', prefix: 'cg:' },
 ]

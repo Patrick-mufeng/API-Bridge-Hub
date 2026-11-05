@@ -41,7 +41,7 @@ export function FeaturesRow() {
       icon: Tags,
       title: t('Channel prefixes'),
       description: t(
-        'wb:, qd:, cl:, ocz:, tr:, cg: — pick the exact upstream you want.'
+        'wb:, qd:, cl:, tr:, cg: — pick the exact upstream you want.'
       ),
     },
     {

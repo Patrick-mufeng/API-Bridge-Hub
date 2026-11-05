@@ -11,8 +11,7 @@
                        ┌─ WorkBuddy   (wb: …)
                        ├─ Qoder       (qd: …)
 客户端 ──►  BridgeHub  ├─ Cline       (cl: …)
-        /v1/chat/…     ├─ OpenCodeZ   (ocz: …)
-                       ├─ Trae        (tr: …)
+        /v1/chat/…     ├─ Trae        (tr: …)
                        └─ CmdGo       (cg: …)
 ```
 
@@ -35,7 +34,6 @@ API-Bridge-Hub/
 ├── Qoder-free-main/       # Qoder 反代（Go + Node worker）※未随仓库分发，见下文
 ├── cline-free-main/       # Cline 反代（Node 零依赖）
 ├── cmdgo-bridge-main/     # CmdGo 反代（Node/TS）
-├── opencodez-free-main/   # OpenCodeZ 反代（Node 原生 TS，免账号）
 ├── trae-free-master/      # Trae 反代（Python/FastAPI）
 └── _branding/             # 品牌 logo 源文件与构建脚本
 ```
@@ -46,7 +44,7 @@ API-Bridge-Hub/
 |---|---|
 | Go ≥ 1.21 | 构建 new-api 主站与 workbuddy/qoder 反代 |
 | [Bun](https://bun.sh) | 构建主站前端 |
-| Node ≥ 20 | cline / cmdgo / opencodez 反代 |
+| Node ≥ 20 | cline / cmdgo 反代 |
 | Python ≥ 3.10 | trae 反代 |
 
 ## 快速开始（主站）
@@ -66,13 +64,13 @@ cd ..
 go build -o new-api-dev.exe .
 
 # 3. 配置
-cp .env.example .env      # 至少设置 PORT（默认 3000），建议自设 SESSION_SECRET
+cp .env.example .env      # 至少设置 PORT（默认 4501），建议自设 SESSION_SECRET
 
 # 4. 启动
 ./new-api-dev.exe
 ```
 
-首次访问 `http://localhost:3000` 会进入初始化向导，创建 root 账号。登录后：
+首次访问 `http://localhost:4501` 会进入初始化向导，创建 root 账号。登录后：
 
 - **渠道管理**：接入各反代渠道（或由反代服务面板一键注册）
 - **反代服务**：manifest 热插拔管理（加载清单 / 启停 / 注册渠道 / 打开面板 / 日志）
@@ -87,7 +85,6 @@ cp .env.example .env      # 至少设置 PORT（默认 3000），建议自设 SE
 |---|---|---|---|
 | workbuddy | Go | manifest 自动构建（`go build ./cmd/server`） | 面板内登录 |
 | cline | Node | 无需构建（`node local-server.js`） | 面板内登录 |
-| opencodez | Node | 无需构建（`node src/index.ts`） | **免账号** |
 | cmdgo | Node/TS | `npm install && npm run build` | 面板内 OAuth |
 | trae | Python | `pip install -r requirements.txt` | Web 页面登录 |
 | Qoder | Go+Node | `npm ci --prefix worker && go build` | 面板内登录 |
@@ -115,7 +112,7 @@ manifest 中 `enabled: true` 的服务会在**主站启动时自动拉起**（�
     "skip_if_exists": "wb2api.exe"
   },
   "start": { "command": "node", "args": ["local-server.js"] },
-  "port": 8972,                        // 本地监听端口
+  "port": 4512,                        // 本地监听端口
   "health_path": "/v1/health",         // 健康检查路径（各服务不同）
   "panel": {                           // 内嵌面板（同源反向代理 + iframe）
     "path": "/",                       // 面板根路径
@@ -137,7 +134,7 @@ manifest 中 `enabled: true` 的服务会在**主站启动时自动拉起**（�
     "model_prefix": "cl:",             // 模型前缀：消费时自动回写为上游原名
     "priority": 6
   },
-  "env": { "PORT": "8972", "HOST": "127.0.0.1" }   // 注入子进程的环境变量
+  "env": { "PORT": "4512", "HOST": "127.0.0.1" }   // 注入子进程的环境变量
 }
 ```
 
@@ -156,7 +153,7 @@ manifest 中 `enabled: true` 的服务会在**主站启动时自动拉起**（�
 | 主站数据库（账号/渠道/配置/统计） | `new-api-main/one-api.db` |
 | 主站环境变量 | `new-api-main/.env` |
 | 渠道 manifest | `new-api-main/data/reverse-proxy/services/` |
-| 各反代账号凭据与状态 | `workbuddy-free-main/{auths,data}`、`~/.cline-free-state.local.json`、`~/.cmdgo-bridge/`、`~/.opencodez-free/` 等 |
+| 各反代账号凭据与状态 | `workbuddy-free-main/{auths,data}`、`~/.cline-free-state.local.json`、`~/.cmdgo-bridge/` 等 |
 
 ## 安全说明
 
@@ -169,7 +166,7 @@ manifest 中 `enabled: true` 的服务会在**主站启动时自动拉起**（�
 | 项目 | 许可证 |
 |---|---|
 | new-api-main（BridgeHub fork） | [AGPL-3.0](new-api-main/LICENSE)（继承上游 QuantumNous/new-api） |
-| workbuddy / cline / cmdgo / opencodez / trae | 各自 MIT License（版权见各目录 LICENSE 文件） |
+| workbuddy / cline / cmdgo / trae | 各自 MIT License（版权见各目录 LICENSE 文件） |
 | Qoder-free-main | 未随仓库分发（上游无 LICENSE 文件） |
 
 ## 免责声明
@@ -180,4 +177,4 @@ manifest 中 `enabled: true` 的服务会在**主站启动时自动拉起**（�
 
 - [QuantumNous/new-api](https://github.com/QuantumNous/new-api) 与 [songquanpeng/one-api](https://github.com/songquanpeng/one-api) —— 主站基础
 - [workbuddy-free](workbuddy-free-main) — Sliverkiss · [cline-free](cline-free-main) — luawei1 · [trae-free](trae-free-master) — autumnsentiment
-- [cmdgo-bridge](cmdgo-bridge-main) 与 [opencodez-free](opencodez-free-main) 由本仓库作者维护
+- [cmdgo-bridge](cmdgo-bridge-main) 由本仓库作者维护

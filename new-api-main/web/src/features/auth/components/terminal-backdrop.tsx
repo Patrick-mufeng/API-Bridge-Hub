@@ -36,13 +36,12 @@ const SCENES: ScriptLine[][] = [
     { kind: 'dim', text: '# one OpenAI-compatible endpoint for every model service' },
     { kind: 'cmd', text: '$ bridgehub status' },
     { kind: 'out', text: '[06:12:44]   gateway ............ online' },
-    { kind: 'ok', text: '[06:12:44]   channels ...... 6 registered, 205 models' },
+    { kind: 'ok', text: '[06:12:44]   channels ...... 5 registered, 192 models' },
     { kind: 'out', text: '[06:12:44]   region ............ local' },
     { kind: 'cmd', text: '$ bridgehub channels list' },
     { kind: 'out', text: '[06:12:51]   workbuddy   wb:   pool ok    41 models' },
     { kind: 'out', text: '[06:12:51]   qoder       qd:   pool ok    30 models' },
     { kind: 'out', text: '[06:12:51]   cline       cl:   pool ok     4 models' },
-    { kind: 'out', text: '[06:12:52]   opencodez   ocz:  pool ok    13 models' },
     { kind: 'out', text: '[06:12:52]   trae        tr:   pool ok    58 models' },
     { kind: 'out', text: '[06:12:52]   cmdgo       cg:   pool ok    53 models' },
     { kind: 'cmd', text: '$ curl -s /v1/chat/completions \\' },
@@ -55,13 +54,12 @@ const SCENES: ScriptLine[][] = [
     { kind: 'out', text: '[06:13:09]   prompt 1.21M, completion 0.84M, TPM 88.4' },
     { kind: 'out', text: '[06:13:09]   per-key quotas, per-model pricing, live dashboard' },
     { kind: 'cmd', text: '$ tail -f logs/relay.log' },
-    { kind: 'out', text: '[06:14:02]   ocz:glm-5-turbo  200  387ms  962 tokens' },
     { kind: 'out', text: '[06:14:05]   tr:glm-4-flash   200  121ms  301 tokens' },
     { kind: 'out', text: '[06:14:11]   wb:cn-auto       200  1.1s   18,540 tokens' },
     { kind: 'out', text: '[06:14:19]   cg:m2.5          200  2.4s   4,022 tokens' },
     { kind: 'dim', text: '# plug in a new service with a single manifest. no code.' },
     { kind: 'cmd', text: '$ bridgehub manifests reload' },
-    { kind: 'ok', text: '[06:14:30]   6 services loaded. hot-plug ready' },
+    { kind: 'ok', text: '[06:14:30]   5 services loaded. hot-plug ready' },
   ],
   [
     { kind: 'cmd', text: '$ bridgehub auth login' },
@@ -82,10 +80,6 @@ const SCENES: ScriptLine[][] = [
 const LINES: ScriptLine[] = SCENES.flat()
 
 const TICK_MS = 26
-const TOTAL_CHARS = SCENES.flat().reduce(
-  (sum, line) => sum + line.text.length + 1,
-  0
-)
 const VISIBLE_LINES = 44
 
 const LINE_COLOR: Record<LineKind, string> = {

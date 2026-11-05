@@ -18,36 +18,34 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
 
 import { Logo } from '@/assets/logo'
 import { getUserModels } from '@/lib/api'
 import { requireServerSuccess } from '@/lib/server-error-message'
 import { useAuthStore } from '@/stores/auth-store'
 
-// The reverse-proxy services behind this relay. Keep in sync with
-// data/reverse-proxy/services/*.json manifests.
+// The subscriptions behind this relay, each a plugin provider registered
+// as channels under the prefix shown. Kept here as a short list rather than
+// derived, because it is a label on a page and not the routing table.
 const RELAY_CHANNELS = [
   { name: 'WorkBuddy', prefix: 'wb:' },
   { name: 'Qoder', prefix: 'qd:' },
   { name: 'Cline', prefix: 'cl:' },
-  { name: 'OpenCodeZ', prefix: 'ocz:' },
   { name: 'Trae', prefix: 'tr:' },
   { name: 'CmdGo', prefix: 'cg:' },
 ]
 
-// Node positions in the 0-100 diagram space (three per side, flanking the hub).
+// Node positions in the 0-100 diagram space, flanking the hub: the odd channel
+// count puts three on the left and two, vertically centred, on the right.
 const NODE_POSITIONS = [
   { x: 15, y: 16 },
   { x: 15, y: 50 },
   { x: 15, y: 84 },
-  { x: 85, y: 16 },
-  { x: 85, y: 50 },
-  { x: 85, y: 84 },
+  { x: 85, y: 33 },
+  { x: 85, y: 67 },
 ]
 
 export function HubDiagram() {
-  const { t } = useTranslation()
   const isAuthenticated = useAuthStore((state) => !!state.auth.user)
 
   const modelsQuery = useQuery({

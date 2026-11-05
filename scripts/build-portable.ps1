@@ -1,7 +1,7 @@
 ﻿# BridgeHub 便携包打包脚本（Windows PowerShell）
 #
 # 产出：dist-release/BridgeHub-portable-v1.0.0.zip
-# 内容：主站（内嵌前端的单个 exe）+ 5 个反代服务（预编译）+ 便携 Node/Python 运行时
+# 内容：主站（内嵌前端的单个 exe）+ 4 个反代服务（预编译）+ 便携 Node/Python 运行时
 # 特点：目标机器零安装，解压双击 start.bat 即用
 #
 # 用法：powershell -ExecutionPolicy Bypass -File scripts\build-portable.ps1
@@ -23,8 +23,7 @@ $CacheDir  = Join-Path $ReleaseDir '_cache'
 $Version   = 'v1.0.0'
 
 # 便携运行时版本（锁定，保证可复现）
-# Node 必须 >= 22.18：opencodez 直接用 node 跑 TypeScript 源码，依赖该版本的
-# 类型剥离能力；cline 的 .js 里写 ESM 也要求 v22 的模块识别。
+# Node 必须 >= 22.18：cline 的 .js 里写 ESM，要求 v22 的模块识别。
 $NodeVersion   = 'v22.18.0'
 $PythonVersion = '3.11.9'
 
@@ -38,7 +37,7 @@ Step "准备目录"
 # 旧密钥、旧日志一起打包。逐个服务目录也要清：robocopy /XD 只排除
 # 已存在目录的复制，不会删除 stage 里的历史残留。
 Remove-Item -Recurse -Force (Join-Path $StageDir 'new-api-main') -ErrorAction SilentlyContinue
-foreach ($svc in @('workbuddy-free-main','cline-free-main','cmdgo-bridge-main','opencodez-free-main','trae-free-master')) {
+foreach ($svc in @('workbuddy-free-main','cline-free-main','cmdgo-bridge-main','trae-free-master')) {
   Remove-Item -Recurse -Force (Join-Path $StageDir $svc) -ErrorAction SilentlyContinue
 }
 Remove-Item -Recurse -Force (Join-Path $StageDir 'var') -ErrorAction SilentlyContinue
@@ -138,9 +137,9 @@ Copy-Item (Join-Path $Root 'new-api-main\.env.example') (Join-Path $StageDir 'ne
 Ok "主站配置模板"
 
 # ---------------------------------------------------------------------------
-Step "复制反代服务（5 个，排除无 LICENSE 的 Qoder）"
+Step "复制反代服务（4 个，排除无 LICENSE 的 Qoder）"
 
-$services = @('workbuddy-free-main', 'cline-free-main', 'cmdgo-bridge-main', 'opencodez-free-main', 'trae-free-master')
+$services = @('workbuddy-free-main', 'cline-free-main', 'cmdgo-bridge-main', 'trae-free-master')
 
 foreach ($svc in $services) {
   $src = Join-Path $Root $svc
@@ -157,11 +156,9 @@ foreach ($svc in $services) {
 # 预编译产物（已在上一步随目录复制，但 build/ 产物可能被 XD 排除，这里补齐）
 # workbuddy: wb2api.exe 随目录复制（*.exe 不在排除名单）
 # cmdgo: dist/ 随目录复制
-# qoder 排除；cline/opencodez 无需构建
+# qoder 排除；cline 无需构建
 
 # qoder worker 的 node_modules 需要单独打包吗？——Qoder 整个排除，无需处理。
-
-# opencodez 需要 models.dev.json 吗？首次启动自动拉取。
 
 # ---------------------------------------------------------------------------
 Step "准备 Python 运行时（trae 用）"
@@ -225,7 +222,6 @@ New-Item -ItemType Directory -Force -Path (Join-Path $StageDir 'new-api-main\dat
 $varRoot = Join-Path $StageDir 'var'
 New-Item -ItemType Directory -Force -Path `
   (Join-Path $varRoot 'cmdgo'), `
-  (Join-Path $varRoot 'opencodez'), `
   (Join-Path $varRoot 'qoder') | Out-Null
 
 # workbuddy 只认配置文件里的 listen（无 CLI 覆盖），而它的默认值是 :7863，
@@ -242,7 +238,7 @@ if (-not (Test-Path $wbCfgPath)) {
   }
   try {
     $wbObj = ConvertFrom-Json -InputObject $wb
-    $wbObj.listen = ':7873'
+    $wbObj.listen = ':4510'
     # 生成随机 api_key：绝不能把模板占位值（test_key）或开发者密钥打进分发包，
     # 否则所有下载者共用同一个网关密钥。
     $rand = New-Object byte[] 18
@@ -251,7 +247,7 @@ if (-not (Test-Path $wbCfgPath)) {
     $wbObj.api_key = 'sk-' + $token.Substring(0, [Math]::Min(24, $token.Length))
     $wbOut = ConvertTo-Json -InputObject $wbObj -Depth 12
     [System.IO.File]::WriteAllText($wbCfgPath, $wbOut, (New-Object System.Text.UTF8Encoding $false))
-    Ok "workbuddy 配置已对齐（listen :7873，随机 api_key）"
+    Ok "workbuddy 配置已对齐（listen :4510，随机 api_key）"
   } catch {
     Warn "无法生成 workbuddy config.json: $($_.Exception.Message)"
   }
@@ -276,23 +272,10 @@ foreach ($f in Get-ChildItem $dataSrc -Filter *.json) {
     }
     'cmdgo.json' {
       # 数据目录搬到包内 var/，并用 --data-dir 显式指定（默认是 ~/.cmdgo-bridge）
-      $json = $json -replace '"args":\s*\[\s*"dist/index\.js",\s*"--port",\s*"11445"\s*\]',
-                          '"args": ["dist/index.js", "--port", "11445", "--data-dir", "../var/cmdgo"]'
+      $json = $json -replace '"args":\s*\[\s*"dist/index\.js",\s*"--port",\s*"4514"\s*\]',
+                          '"args": ["dist/index.js", "--port", "4514", "--data-dir", "../var/cmdgo"]'
       $json = $json -replace '"path":\s*"[^"]*\.cmdgo-bridge\\\\config\.json"',
                           '"path": "../var/cmdgo/config.json"'
-    }
-    'opencodez.json' {
-      # 密钥路径硬编码在服务内（~/.opencodez-free/agent-key.txt），不受
-      # OPENCODEZ_CONFIG 影响，而且服务是"读不到文件才生成密钥"——预建空
-      # 文件会被当成空密钥，导致注册渠道失败。所以这里指向真实的自建位置，
-      # 用 ~ 形式（引擎已支持展开），密钥由服务首次启动时自行生成。
-      $json = $json -replace '"path":\s*"[^"]*\.opencodez-free\\\\agent-key\.txt"',
-                          '"path": "~/.opencodez-free/agent-key.txt"'
-      # 注入环境变量，让服务把配置目录认到包内
-      if ($json -notmatch '"env"') {
-        $json = $json -replace '"key_source"',
-                            '"env": { "OPENCODEZ_CONFIG": "../var/opencodez/config.json" }, "key_source"'
-      }
     }
   }
 
@@ -308,11 +291,6 @@ if (-not (Test-Path $cmdgoCfg)) {
   [System.IO.File]::WriteAllText($cmdgoCfg, '{ "apiKey": "" }', (New-Object System.Text.UTF8Encoding $false))
 }
 
-# opencodez 免账号，密钥由服务在首次启动时自行生成并写入 key_source.path。
-# 关键：绝不能预建空的 agent-key.txt —— 它的 resolveOneKey 是"能读到文件就
-# 用其内容，读不到才生成"，空文件会被当成有效密钥（空串），导致授权永远失败。
-[System.IO.Directory]::CreateDirectory((Join-Path $varRoot 'opencodez')) | Out-Null
-
 # ---------------------------------------------------------------------------
 Step "一致性校验：manifest 与随包目录必须一一对应"
 
@@ -322,7 +300,6 @@ $pairs = @{
   'workbuddy.json'  = 'workbuddy-free-main'
   'cline.json'      = 'cline-free-main'
   'cmdgo.json'      = 'cmdgo-bridge-main'
-  'opencodez.json'  = 'opencodez-free-main'
   'trae.json'       = 'trae-free-master'
 }
 $problems = @()
@@ -345,14 +322,12 @@ if ($problems.Count -gt 0) {
   $problems | ForEach-Object { Write-Host "    ! $_" -ForegroundColor Red }
   throw "manifest/目录 一致性校验失败（见上）"
 }
-Ok "一致性校验通过：5 个服务目录 ↔ 5 份 manifest，无孤儿项"
+Ok "一致性校验通过：4 个服务目录 ↔ 4 份 manifest，无孤儿项"
 
 # 密钥路径校验：manifest 里写的相对路径必须能从 workdir 解析到真实文件。
-# 两个已知豁免（都由服务自己在首次启动时创建，打包者不该代劳）：
+# 已知豁免（由服务自己在首次启动时创建，打包者不该代劳）：
 #   - cline 的 .env.local：有意不打包 .env*，其 start.mjs 会自建
-#   - opencodez 的 agent-key.txt：它"读不到文件才生成密钥"，预建空文件
-#     反而会被当成空密钥（这是上一版注册渠道失败的原因）
-$selfMinted = @('cline.json', 'opencodez.json')
+$selfMinted = @('cline.json')
 foreach ($name in $pairs.Keys) {
   $m = [System.IO.File]::ReadAllText((Join-Path $dataDst $name), [System.Text.Encoding]::UTF8) | ConvertFrom-Json
   if (-not $m.key_source -or -not $m.key_source.path) { continue }
