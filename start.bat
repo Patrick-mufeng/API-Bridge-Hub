@@ -41,19 +41,19 @@ if not exist "new-api-dev.exe" (
 )
 
 rem ---- already running? ----
-netstat -ano | findstr "LISTENING" | findstr /C:":3000 " >nul
+netstat -ano | findstr "LISTENING" | findstr /C:":4501 " >nul
 if not errorlevel 1 (
-  echo [BridgeHub] port 3000 is already in use - the hub is probably running.
-  echo [BridgeHub] open http://localhost:3000 , or stop that process first.
+  echo [BridgeHub] port 4501 is already in use - the hub is probably running.
+  echo [BridgeHub] open http://localhost:4501 , or stop that process first.
   pause
   exit /b 0
 )
 
-echo [BridgeHub] starting hub at http://localhost:3000
+echo [BridgeHub] starting hub at http://localhost:4501
 echo [BridgeHub] enabled relay services auto-start from their manifests.
 echo [BridgeHub] stop: close this window or press Ctrl+C
 echo.
-start "" http://localhost:3000
+start "" http://localhost:4501
 new-api-dev.exe
 echo.
 echo [!] the server exited unexpectedly - see the error above.

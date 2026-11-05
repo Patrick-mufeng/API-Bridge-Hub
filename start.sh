@@ -22,13 +22,13 @@ fi
 BIN=./new-api-dev
 [ -f "./new-api-dev" ] || BIN=./new-api-dev.exe
 
-if netstat -ano 2>/dev/null | grep LISTENING | grep -q ":3000 "; then
-  echo "[BridgeHub] port 3000 already in use - the hub is probably running."
-  echo "[BridgeHub] open http://localhost:3000 , or stop that process first."
+if netstat -ano 2>/dev/null | grep LISTENING | grep -q ":4501 "; then
+  echo "[BridgeHub] port 4501 already in use - the hub is probably running."
+  echo "[BridgeHub] open http://localhost:4501 , or stop that process first."
   exit 0
 fi
 
-echo "[BridgeHub] starting hub at http://localhost:3000"
+echo "[BridgeHub] starting hub at http://localhost:4501"
 echo "[BridgeHub] enabled relay services auto-start from their manifests"
 "$BIN" || echo "[!] the server exited unexpectedly - see the error above"
 read -rp "Press Enter to close..." _

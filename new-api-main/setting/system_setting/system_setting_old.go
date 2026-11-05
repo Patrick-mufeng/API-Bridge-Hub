@@ -1,6 +1,6 @@
 package system_setting
 
-var ServerAddress = "http://localhost:3000"
+var ServerAddress = "http://localhost:4501"
 var TaskPublicAddress = ""
 var WorkerUrl = ""
 var WorkerValidKey = ""
