@@ -89,6 +89,10 @@ func PreWssConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usag
 	if relayInfo.UsePrice {
 		return nil
 	}
+	// 计费已关闭：实时会话不得预扣，也不得按余额拦截。
+	if !common.QuotaBillingEnabled {
+		return nil
+	}
 	userQuota, err := model.GetUserQuota(relayInfo.UserId, false)
 	if err != nil {
 		return err

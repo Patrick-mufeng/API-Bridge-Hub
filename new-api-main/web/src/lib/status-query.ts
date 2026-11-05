@@ -99,6 +99,7 @@ export function mapStatusDataToConfig(
     displayTokenStatEnabled: data.display_token_stat_enabled as
       | boolean
       | undefined,
+    tokenStatsEnabled: data.token_stats_enabled as boolean | undefined,
     currency,
   }
 }

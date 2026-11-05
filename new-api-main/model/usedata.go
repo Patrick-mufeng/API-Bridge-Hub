@@ -182,6 +182,32 @@ func GetQuotaDataGroupByUser(startTime int64, endTime int64) (quotaData []*Quota
 	return quotaDatas, err
 }
 
+// GetTokenStatsByUser 返回单个用户按模型与小时聚合的用量，
+// 只选取 Token 计数字段，确保返回体不可能携带金额。
+func GetTokenStatsByUser(userId int, startTime int64, endTime int64) (quotaData []*QuotaData, err error) {
+	var quotaDatas []*QuotaData
+	err = DB.Table("quota_data").
+		Select("user_id, username, model_name, created_at, sum(count) as count, sum(token_used) as token_used, sum(prompt_tokens) as prompt_tokens, sum(completion_tokens) as completion_tokens").
+		Where("user_id = ? and created_at >= ? and created_at <= ?", userId, startTime, endTime).
+		Group("user_id, username, model_name, created_at").
+		Find(&quotaDatas).Error
+	return quotaDatas, err
+}
+
+// GetAllTokenStats 聚合全部用户按模型与小时的用量，
+// 采用与 GetTokenStatsByUser 相同的纯 Token 字段投影。
+func GetAllTokenStats(startTime int64, endTime int64, username string) (quotaData []*QuotaData, err error) {
+	var quotaDatas []*QuotaData
+	query := DB.Table("quota_data").
+		Select("model_name, created_at, sum(count) as count, sum(token_used) as token_used, sum(prompt_tokens) as prompt_tokens, sum(completion_tokens) as completion_tokens").
+		Where("created_at >= ? and created_at <= ?", startTime, endTime)
+	if username != "" {
+		query = query.Where("username = ?", username)
+	}
+	err = query.Group("model_name, created_at").Find(&quotaDatas).Error
+	return quotaDatas, err
+}
+
 func GetAllQuotaDates(startTime int64, endTime int64, username string) (quotaData []*QuotaData, err error) {
 	if username != "" {
 		return GetQuotaDataByUsername(username, startTime, endTime)

@@ -19,6 +19,11 @@ const (
 // PreConsumeBilling 根据用户计费偏好创建 BillingSession 并执行预扣费。
 // 会话存储在 relayInfo.Billing 上，供后续 Settle / Refund 使用。
 func PreConsumeBilling(c *gin.Context, preConsumedQuota int, relayInfo *relaycommon.RelayInfo) *types.NewAPIError {
+	// 计费已关闭：不预扣、不建会话、不做余额拦截。
+	// relayInfo.Billing 保持为 nil，SettleBilling 因而走同一条不计费路径。
+	if !common.QuotaBillingEnabled {
+		return nil
+	}
 	if relayInfo != nil && relayInfo.QuotaClamp != nil {
 		return types.NewErrorWithStatusCode(
 			relayInfo.QuotaClamp,
@@ -50,6 +55,14 @@ func PreConsumeBilling(c *gin.Context, preConsumedQuota int, relayInfo *relaycom
 // SettleBilling 执行计费结算。如果 RelayInfo 上有 BillingSession 则通过 session 结算，
 // 否则回退到旧的 PostConsumeQuota 路径（兼容按次计费等场景）。
 func SettleBilling(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, actualQuota int) error {
+	// 计费已关闭：不扣费。若请求进行中开关才被切换，会话可能仍然存在，
+	// 此时退还其预扣额度，避免已预扣的额度被搁置。
+	if !common.QuotaBillingEnabled {
+		if relayInfo.Billing != nil {
+			relayInfo.Billing.Refund(ctx)
+		}
+		return nil
+	}
 	if relayInfo.Billing != nil {
 		preConsumed := relayInfo.Billing.GetPreConsumedQuota()
 		delta := actualQuota - preConsumed

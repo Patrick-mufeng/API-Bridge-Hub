@@ -23,6 +23,14 @@ var QuotaPerUnit = 500 * 1000.0 // $0.002 / 1K tokens
 // 保留旧变量以兼容历史逻辑，实际展示由 general_setting.quota_display_type 控制
 var DisplayInCurrencyEnabled = true
 var DisplayTokenStatEnabled = true
+
+// QuotaBillingEnabled 控制整条额度/计费链路（预扣费、结算与旧版扣费路径）。
+// 为 false 时不预扣、不扣费，也不会因余额不足拦截请求；
+// Token 计数、消费日志与统计表照常写入，用量依然可见。
+var QuotaBillingEnabled = true
+
+// TokenStatsEnabled 控制独立的 Token 统计页及其导航入口，不影响底层用量数据。
+var TokenStatsEnabled = true
 var DrawingEnabled = true
 var TaskEnabled = true
 var DataExportEnabled = true

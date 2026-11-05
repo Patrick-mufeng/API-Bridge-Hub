@@ -82,6 +82,41 @@ func GetUserQuotaDates(c *gin.Context) {
 	return
 }
 
+// GetTokenStats 为独立的 Token 统计页提供数据。
+// 字段投影仅含 Token；功能开关关闭时该接口不可用。
+func GetTokenStats(c *gin.Context) {
+	if !common.TokenStatsEnabled {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"message": "token statistics are disabled",
+		})
+		return
+	}
+	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
+	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
+	// 与其他用量接口一致，跨度上限为 1 个月。
+	if endTimestamp-startTimestamp > 2592000 {
+		common.ApiErrorT(c, "The time range cannot exceed 1 month")
+		return
+	}
+	var dates []*model.QuotaData
+	var err error
+	if c.GetInt("role") >= common.RoleAdminUser {
+		dates, err = model.GetAllTokenStats(startTimestamp, endTimestamp, c.Query("username"))
+	} else {
+		dates, err = model.GetTokenStatsByUser(c.GetInt("id"), startTimestamp, endTimestamp)
+	}
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    dates,
+	})
+}
+
 func GetAllFlowQuotaDates(c *gin.Context) {
 	startTimestamp, endTimestamp, ok := parseFlowQuotaTimeRange(c)
 	if !ok {

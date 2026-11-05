@@ -48,6 +48,8 @@ import {
 import type { SystemOption } from '@/features/system-settings/types'
 
 const FEATURE_DEFAULTS = {
+  QuotaBillingEnabled: true,
+  TokenStatsEnabled: true,
   SelfUseModeEnabled: false,
   RegisterEnabled: true,
   PasswordRegisterEnabled: true,
@@ -63,6 +65,8 @@ const FEATURE_DEFAULTS = {
 }
 
 const featureSchema = z.object({
+  quotaBilling: z.boolean(),
+  tokenStats: z.boolean(),
   selfUseMode: z.boolean(),
   register: z.boolean(),
   drawing: z.boolean(),
@@ -86,6 +90,8 @@ type FeatureToggleMeta = {
 }
 
 const toFormValues = (settings: typeof FEATURE_DEFAULTS): FeatureFormValues => ({
+  quotaBilling: settings.QuotaBillingEnabled !== false,
+  tokenStats: settings.TokenStatsEnabled !== false,
   selfUseMode: Boolean(settings.SelfUseModeEnabled),
   register: Boolean(settings.RegisterEnabled && settings.PasswordRegisterEnabled),
   drawing: Boolean(settings.DrawingEnabled),
@@ -125,6 +131,20 @@ export function FeatureTogglesSection({
   }, [initialRef, form])
 
   const toggleMeta: FeatureToggleMeta[] = [
+    {
+      key: 'quotaBilling',
+      title: t('Quota & billing'),
+      description: t(
+        'Reserve and charge quota per request. Turn off for personal use: requests are then never blocked for insufficient balance, while token usage is still recorded.'
+      ),
+    },
+    {
+      key: 'tokenStats',
+      title: t('Token statistics page'),
+      description: t(
+        'Show the standalone token statistics page and its sidebar entry.'
+      ),
+    },
     {
       key: 'selfUseMode',
       title: t('Self-use mode'),
@@ -193,6 +213,12 @@ export function FeatureTogglesSection({
       }
     }
 
+    pushIfChanged(
+      'QuotaBillingEnabled',
+      values.quotaBilling,
+      initial.quotaBilling
+    )
+    pushIfChanged('TokenStatsEnabled', values.tokenStats, initial.tokenStats)
     pushIfChanged('SelfUseModeEnabled', values.selfUseMode, initial.selfUseMode)
     pushIfChanged('RegisterEnabled', values.register, initial.register)
     pushIfChanged(
