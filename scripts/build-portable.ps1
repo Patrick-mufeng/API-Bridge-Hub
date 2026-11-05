@@ -1,17 +1,24 @@
 ﻿# BridgeHub 便携包打包脚本（Windows PowerShell）
 #
 # 产出：dist-release/BridgeHub-portable-v1.0.0.zip
-# 内容：主站（内嵌前端的单个 exe）+ 4 个反代服务（预编译）+ 便携 Node/Python 运行时
+# 内容：主站（内嵌前端的单个 exe）+ Bun 运行时（插件宿主用）
 # 特点：目标机器零安装，解压双击 start.bat 即用
+#
+# 为什么只有 Bun：各厂商的登录与请求由社区插件在 Bun 里完成，
+# 主站不再扮演反代服务的管理者（见 c642dd6）。所以包里不需要
+# Node、Python，也不需要任何服务的 manifest。
 #
 # 用法：powershell -ExecutionPolicy Bypass -File scripts\build-portable.ps1
 #   可选参数：
-#     -SkipRuntimeDownload   已有 runtime/ 缓存时跳过下载
+#     -SkipRuntimeDownload   已有 runtime/bun/bun.exe 时跳过下载
 #     -SkipBuild             跳过编译（用现有产物，快速重打包）
+#     -CheckOnly             只校验输入是否齐全，不下载、不编译、不打包
+#                            （CI 用它抓住"引用了已删除目录"这类断裂）
 
 param(
   [switch]$SkipRuntimeDownload,
-  [switch]$SkipBuild
+  [switch]$SkipBuild,
+  [switch]$CheckOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -22,68 +29,90 @@ $StageDir  = Join-Path $ReleaseDir 'BridgeHub'
 $CacheDir  = Join-Path $ReleaseDir '_cache'
 $Version   = 'v1.0.0'
 
-# 便携运行时版本（锁定，保证可复现）
-# Node 必须 >= 22.18：cline 的 .js 里写 ESM，要求 v22 的模块识别。
-$NodeVersion   = 'v22.18.0'
-$PythonVersion = '3.11.9'
+# 便携运行时版本（锁定，保证可复现）。
+# 必须与 new-api-main/pkg/pluginhost/bun.go 的 BunVersion 一致或更新：
+# 宿主只保证不低于 BunVersion，更旧的 Bun 会拒绝启动插件。
+$BunVersion = '1.4.2'
+# 与 bun.go 的 bunSums 同一个值：官方 SHASUMS256.txt 里的 sha256。
+# 下载后校验，避免镜像或缓存里被替换过的包进分发包。
+$BunSha256  = '78c221c2376f79731ccf4e4af0b3bb46d81fefa3296c5abee09ad8a1b21e68c6'
+$BunZipName = "bun-windows-x64-baseline.zip"
 
 function Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
 function Ok($msg)   { Write-Host "    $msg" -ForegroundColor Green }
 function Warn($msg) { Write-Host "    $msg" -ForegroundColor Yellow }
 
 # ---------------------------------------------------------------------------
-Step "准备目录"
-# stage 里上一轮的产物必须清干净，否则会带着旧 manifest、旧数据库、
-# 旧密钥、旧日志一起打包。逐个服务目录也要清：robocopy /XD 只排除
-# 已存在目录的复制，不会删除 stage 里的历史残留。
-Remove-Item -Recurse -Force (Join-Path $StageDir 'new-api-main') -ErrorAction SilentlyContinue
-foreach ($svc in @('workbuddy-free-main','cline-free-main','cmdgo-bridge-main','trae-free-master')) {
-  Remove-Item -Recurse -Force (Join-Path $StageDir $svc) -ErrorAction SilentlyContinue
+# -CheckOnly: 打包脚本最容易坏在"引用了某个已删掉的目录"，而这种错只有
+# 真正跑一遍才会暴露。CI 用这一档把输入清单核一遍，不联网、不编译。
+if ($CheckOnly) {
+  Step "校验打包输入（-CheckOnly）"
+  $missing = @()
+  foreach ($p in @('new-api-main\.env.example', 'new-api-main\web\package.json',
+                   'scripts\portable-start.bat', 'scripts\portable-QUICKSTART.md')) {
+    if (-not (Test-Path (Join-Path $Root $p))) { $missing += $p }
+  }
+  if ($missing.Count -gt 0) {
+    $missing | ForEach-Object { Write-Host "    ! 缺少: $_" -ForegroundColor Red }
+    throw "打包输入不完整（见上）"
+  }
+  # 脚本里不该再出现已删除的 manifest 目录。匹配串拆开拼，免得这行自己命中自己。
+  $text = [System.IO.File]::ReadAllText($PSCommandPath, [System.Text.Encoding]::UTF8)
+  $deadDir = 'data' + [char]92 + 'reverse-proxy'
+  $deadSeed = 'service' + [char]92 + 'reverse' + '_proxy'
+  if ($text.Contains($deadDir) -or $text.Contains($deadSeed)) {
+    throw "脚本仍引用已删除的 manifest 目录（$deadDir / $deadSeed）"
+  }
+  Ok "输入齐全，无已删除目录的引用"
+  exit 0
 }
-Remove-Item -Recurse -Force (Join-Path $StageDir 'var') -ErrorAction SilentlyContinue
+
+# ---------------------------------------------------------------------------
+Step "准备目录"
+# stage 里上一轮的产物必须清干净，否则会带着旧数据库、旧密钥、旧日志
+# 一起打包。逐个目录清：只删文件不会删掉上一轮多出来的目录。
+Remove-Item -Recurse -Force (Join-Path $StageDir 'new-api-main') -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force (Join-Path $StageDir 'runtime') -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $StageDir, $CacheDir | Out-Null
 Ok "stage: $StageDir"
 
 # ---------------------------------------------------------------------------
-Step "下载便携运行时（Node $NodeVersion / Python $PythonVersion embeddable）"
+Step "准备 Bun 运行时（插件宿主用，$BunVersion）"
 
-$NodeZip   = Join-Path $CacheDir "node-$NodeVersion-win-x64.zip"
-$PythonZip = Join-Path $CacheDir "python-$PythonVersion-embed-amd64.zip"
+$BunZip  = Join-Path $CacheDir $BunZipName
+$BunDir  = Join-Path $StageDir 'runtime\bun'
+$BunExe  = Join-Path $BunDir 'bun.exe'
 
-if (-not (Test-Path $NodeZip)) {
-  if ($SkipRuntimeDownload) { Warn "缺少 $NodeZip（-SkipRuntimeDownload），将复用现有 runtime" }
-  else {
-    $url = "https://nodejs.org/dist/$NodeVersion/node-$NodeVersion-win-x64.zip"
-    Write-Host "    下载 $url"
-    Invoke-WebRequest -Uri $url -OutFile $NodeZip -UseBasicParsing
-  }
-} else { Ok "Node zip 已缓存" }
-
-if (-not (Test-Path $PythonZip)) {
-  if ($SkipRuntimeDownload) { Warn "缺少 $PythonZip，将复用现有 runtime" }
-  else {
-    $url = "https://www.python.org/ftp/python/$PythonVersion/python-$PythonVersion-embed-amd64.zip"
-    Write-Host "    下载 $url"
-    Invoke-WebRequest -Uri $url -OutFile $PythonZip -UseBasicParsing
-  }
-} else { Ok "Python zip 已缓存" }
-
-# 解包到 stage/runtime/（已存在则复用）
-$RuntimeDir = Join-Path $StageDir 'runtime'
-if (Test-Path $NodeZip) {
-  $nodeDir = Join-Path $RuntimeDir 'node'
-  if (-not (Test-Path (Join-Path $nodeDir 'node.exe'))) {
-    Remove-Item -Recurse -Force $nodeDir -ErrorAction SilentlyContinue
-    New-Item -ItemType Directory -Force -Path $nodeDir | Out-Null
-    Expand-Archive -Path $NodeZip -DestinationPath $nodeDir -Force
-    # zip 里有一层目录，拍平
-    $inner = Get-ChildItem $nodeDir | Select-Object -First 1
-    if ($inner.PSIsContainer) {
-      Get-ChildItem $inner.FullName | Move-Item -Destination $nodeDir -Force
-      Remove-Item -Recurse -Force $inner.FullName
+if (Test-Path $BunExe) {
+  Ok "Bun 运行时已存在（复用）"
+} else {
+  if (-not (Test-Path $BunZip)) {
+    if ($SkipRuntimeDownload) {
+      throw "缺少 $BunZip 且已指定 -SkipRuntimeDownload。先联网跑一次，或手动把 Bun 解压到 $BunDir"
     }
-    Ok "node 运行时就绪"
-  } else { Ok "node 运行时已存在" }
+    $url = "https://github.com/oven-sh/bun/releases/download/bun-v$BunVersion/$BunZipName"
+    Write-Host "    下载 $url"
+    Invoke-WebRequest -Uri $url -OutFile $BunZip -UseBasicParsing
+  } else { Ok "Bun zip 已缓存" }
+
+  # 校验和：一个被替换过的 bun.exe 会以主站的身份跑所有插件
+  $actual = (Get-FileHash -Path $BunZip -Algorithm SHA256).Hash.ToLower()
+  if ($actual -ne $BunSha256) {
+    Remove-Item $BunZip -Force -ErrorAction SilentlyContinue
+    throw "Bun zip 校验和不符（期望 $BunSha256，实际 $actual），已删除；请重跑或检查网络"
+  }
+  Ok "Bun zip 校验和通过"
+
+  New-Item -ItemType Directory -Force -Path $BunDir | Out-Null
+  Expand-Archive -Path $BunZip -DestinationPath $BunDir -Force
+  # zip 里有一层 bun-windows-x64-baseline/ 目录，拍平到 runtime\bun\
+  $inner = Get-ChildItem $BunDir -Directory | Select-Object -First 1
+  if ($inner) {
+    Get-ChildItem $inner.FullName | Move-Item -Destination $BunDir -Force
+    Remove-Item -Recurse -Force $inner.FullName
+  }
+  if (-not (Test-Path $BunExe)) { throw "解包后找不到 $BunExe" }
+  Ok "Bun 运行时就绪"
 }
 
 # ---------------------------------------------------------------------------
@@ -91,283 +120,58 @@ Step "编译主站（前端 + Go，strip 符号）"
 
 if (-not $SkipBuild) {
   Push-Location (Join-Path $Root 'new-api-main')
-  if (-not (Test-Path 'web/dist/index.html')) {
-    Push-Location web
-    bun install --registry https://registry.npmmirror.com
-    bun run build
-    Pop-Location
-  }
-
-  # 种子清单通过 //go:embed seeds/*.json 编译进二进制，首次启动时写入 data
-  # 目录 —— 所以光在打包阶段删 data\qoder.json 没用，它会被重新种出来。
-  # 必须在编译前把不随包分发的种子移出 seeds/，编完再放回去。
-  $seedDir = Join-Path $Root 'new-api-main\service\reverse_proxy\seeds'
-  $seedStash = @{}
-  foreach ($exclude in @('qoder.json')) {
-    $src = Join-Path $seedDir $exclude
-    if (Test-Path $src) {
-      $seedStash[$exclude] = [System.IO.File]::ReadAllBytes($src)
-      Remove-Item $src -Force
-      Warn "编译期临时移出种子: $exclude（无 LICENSE，不随包分发）"
-    }
-  }
-
   try {
+    if (-not (Test-Path 'web\dist\index.html')) {
+      Push-Location web
+      bun install --registry https://registry.npmmirror.com
+      bun run build
+      Pop-Location
+    }
     $env:CGO_ENABLED = '0'
     go build -trimpath -ldflags="-s -w" -o (Join-Path $StageDir 'new-api-dev.exe') .
     if ($LASTEXITCODE -ne 0) { throw "go build 失败" }
-    Ok "主站已编译（stripped，已剔除 Qoder 种子）"
+    Ok "主站已编译（stripped）"
   } finally {
-    # 无论成败都恢复源码树，避免把开发环境改坏
-    foreach ($name in $seedStash.Keys) {
-      [System.IO.File]::WriteAllBytes((Join-Path $seedDir $name), $seedStash[$name])
-      Ok "已恢复源码种子: $name"
-    }
+    Pop-Location
   }
-  Pop-Location
 } else {
-  Copy-Item (Join-Path $Root 'new-api-main\new-api-dev.exe') $StageDir -Force
-  Warn "使用现有主站产物（-SkipBuild）——注意：该产物可能仍内嵌 Qoder 种子"
+  $built = Join-Path $Root 'new-api-main\new-api-dev.exe'
+  if (-not (Test-Path $built)) { throw "-SkipBuild 需要 $built 已存在" }
+  Copy-Item $built $StageDir -Force
+  Warn "使用现有主站产物（-SkipBuild）"
 }
 
 # 主站配置模板（首次运行由 start.bat 复制为 .env）
-# 注意：new-api-main 目录在"准备目录"阶段被整体删除，这里必须先建目录。
+# new-api-main 目录在"准备目录"阶段被整体删除，这里必须先建目录。
 New-Item -ItemType Directory -Force -Path (Join-Path $StageDir 'new-api-main') | Out-Null
 Copy-Item (Join-Path $Root 'new-api-main\.env.example') (Join-Path $StageDir 'new-api-main\.env.example') -Force
 Ok "主站配置模板"
 
 # ---------------------------------------------------------------------------
-Step "复制反代服务（4 个，排除无 LICENSE 的 Qoder）"
+Step "启动脚本与快速上手文档"
 
-$services = @('workbuddy-free-main', 'cline-free-main', 'cmdgo-bridge-main', 'trae-free-master')
-
-foreach ($svc in $services) {
-  $src = Join-Path $Root $svc
-  $dst = Join-Path $StageDir $svc
-  if (-not (Test-Path $src)) { Warn "跳过缺失的服务: $svc"; continue }
-
-  robocopy $src $dst /E /NFL /NDL /NJH /NJS /NP `
-    /XD node_modules .git data auths logs __pycache__ .venv venv `
-    /XF '*.db' '*.db-wal' '*.db-shm' '.env' '.env.local' 'config.json' 'state.json' '*.log' | Out-Null
-  if ($LASTEXITCODE -ge 8) { throw "robocopy 失败: $svc ($LASTEXITCODE)" }
-  Ok "复制 $svc"
-}
-
-# 预编译产物（已在上一步随目录复制，但 build/ 产物可能被 XD 排除，这里补齐）
-# workbuddy: wb2api.exe 随目录复制（*.exe 不在排除名单）
-# cmdgo: dist/ 随目录复制
-# qoder 排除；cline 无需构建
-
-# qoder worker 的 node_modules 需要单独打包吗？——Qoder 整个排除，无需处理。
-
-# ---------------------------------------------------------------------------
-Step "准备 Python 运行时（trae 用）"
-
-$pyDir = Join-Path $RuntimeDir 'python'
-if (Test-Path $PythonZip) {
-  if (-not (Test-Path (Join-Path $pyDir 'python.exe'))) {
-    Remove-Item -Recurse -Force $pyDir -ErrorAction SilentlyContinue
-    New-Item -ItemType Directory -Force -Path $pyDir | Out-Null
-    Expand-Archive -Path $PythonZip -DestinationPath $pyDir -Force
-    # embeddable 包默认禁用 site-packages，需要打开 import site
-    $pth = Join-Path $pyDir 'python311._pth'
-    if (Test-Path $pth) {
-      (Get-Content $pth) -replace '^#\s*import site$', 'import site' | Set-Content $pth
-    }
-    Ok "python 运行时就绪"
-  } else { Ok "python 运行时已存在" }
-
-  # 安装 trae 依赖到便携 Python。embeddable 包不带 pip，需先引导。
-  $req = Join-Path $StageDir 'trae-free-master\requirements.txt'
-  if (Test-Path $req) {
-    $py = Join-Path $pyDir 'python.exe'
-    if (-not (Test-Path (Join-Path $pyDir 'Lib\site-packages\uvicorn'))) {
-      # 1) 确保 pip 可用（embeddable 包不自带；用目录存在性判断，避免把
-      #    python 的 stderr 当 PowerShell 致命错误）
-      $pipDir = Join-Path $pyDir 'Lib\site-packages\pip'
-      if (-not (Test-Path $pipDir)) {
-        $getPip = Join-Path $CacheDir 'get-pip.py'
-        if (-not (Test-Path $getPip)) {
-          if ($SkipRuntimeDownload) { throw "缺少 get-pip.py（-SkipRuntimeDownload），无法引导 pip" }
-          Write-Host "    引导 pip（get-pip.py）"
-          Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile $getPip -UseBasicParsing
-        }
-        & $py $getPip --no-warn-script-location
-        if ($LASTEXITCODE -ne 0) { throw "pip 引导失败" }
-      }
-      Ok "pip 可用"
-
-      # 2) 安装依赖（用 cmd 包装避免 python 的 stderr 触发 PowerShell 错误）
-      Write-Host "    安装 trae 依赖（uvicorn/fastapi/httpx/cryptography…）"
-      & cmd /c "`"$py`" -m pip install --quiet --disable-pip-version-check -i https://pypi.tuna.tsinghua.edu.cn/simple -r `"$req`" 2>&1"
-      if ($LASTEXITCODE -ne 0) { throw "trae 依赖安装失败" }
-
-      # 3) 校验关键包可导入，防止"装了个寂寞"
-      & cmd /c "`"$py`" -c `"import uvicorn, fastapi, httpx, cryptography`" 2>&1"
-      if ($LASTEXITCODE -ne 0) { throw "trae 依赖校验失败（import 不通）" }
-      Ok "trae 依赖安装并校验通过"
-    } else { Ok "trae 依赖已安装" }
-  }
-} else { Warn "缺 Python zip，跳过 Python 运行时" }
-
-# ---------------------------------------------------------------------------
-Step "复制 data 骨架与 manifest（路径改为包内相对写法）"
-
-$dataSrc = Join-Path $Root 'new-api-main\data\reverse-proxy\services'
-$dataDst = Join-Path $StageDir 'new-api-main\data\reverse-proxy\services'
-New-Item -ItemType Directory -Force -Path $dataDst | Out-Null
-New-Item -ItemType Directory -Force -Path (Join-Path $StageDir 'new-api-main\data\reverse-proxy\logs') | Out-Null
-
-# 包内私有数据目录（密钥/账号/状态），随包走、不依赖系统用户目录
-$varRoot = Join-Path $StageDir 'var'
-New-Item -ItemType Directory -Force -Path `
-  (Join-Path $varRoot 'cmdgo'), `
-  (Join-Path $varRoot 'qoder') | Out-Null
-
-# workbuddy 只认配置文件里的 listen（无 CLI 覆盖），而它的默认值是 :7863，
-# 与 manifest 声明的端口不一致，会让"自动启动"误判失败。分发时显式写一份
-# 与 manifest 对齐的 config.json（api_key 留空，首次运行不会自己生成，
-# 因此这里给一个占位；workbuddy 只在 api_key 非空时校验，空值会自行处理）。
-$wbCfgPath = Join-Path $StageDir 'workbuddy-free-main\config.json'
-if (-not (Test-Path $wbCfgPath)) {
-  $wbExample = Join-Path $StageDir 'workbuddy-free-main\config.example.json'
-  if (Test-Path $wbExample) {
-    $wb = [System.IO.File]::ReadAllText($wbExample, [System.Text.Encoding]::UTF8)
-  } else {
-    $wb = '{ "api_key": "" }'
-  }
-  try {
-    $wbObj = ConvertFrom-Json -InputObject $wb
-    $wbObj.listen = ':4510'
-    # 生成随机 api_key：绝不能把模板占位值（test_key）或开发者密钥打进分发包，
-    # 否则所有下载者共用同一个网关密钥。
-    $rand = New-Object byte[] 18
-    [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($rand)
-    $token = [Convert]::ToBase64String($rand) -replace '[+/=]', ''
-    $wbObj.api_key = 'sk-' + $token.Substring(0, [Math]::Min(24, $token.Length))
-    $wbOut = ConvertTo-Json -InputObject $wbObj -Depth 12
-    [System.IO.File]::WriteAllText($wbCfgPath, $wbOut, (New-Object System.Text.UTF8Encoding $false))
-    Ok "workbuddy 配置已对齐（listen :4510，随机 api_key）"
-  } catch {
-    Warn "无法生成 workbuddy config.json: $($_.Exception.Message)"
-  }
-}
-
-foreach ($f in Get-ChildItem $dataSrc -Filter *.json) {
-  if ($f.Name -eq 'qoder.json') { continue }  # 未随包分发
-  # 必须显式按 UTF-8 读取：Get-Content -Raw 在中文 Windows 上默认用 GBK，
-  # 会把 manifest 里的中文描述读成乱码并截断，导致 JSON 非法。
-  $json = [System.IO.File]::ReadAllText($f.FullName, [System.Text.Encoding]::UTF8)
-
-  switch ($f.Name) {
-    'cline.json' {
-      # local-server.js 无 package.json 且含 ESM 语法，Node 只在 .mjs 下稳定识别；
-      # 官方入口就是 start.mjs（跨平台启动器，会自建 .env.local）。
-      $json = $json -replace '"local-server\.js"', '"start.mjs"'
-    }
-    'trae.json' {
-      # trae 首次启动就要求认证源；分发时给一份 .env 模板，让用户在面板里补 token
-      Copy-Item (Join-Path $StageDir 'trae-free-master\.env.example') `
-                (Join-Path $StageDir 'trae-free-master\.env') -Force -ErrorAction SilentlyContinue
-    }
-    'cmdgo.json' {
-      # 数据目录搬到包内 var/，并用 --data-dir 显式指定（默认是 ~/.cmdgo-bridge）
-      $json = $json -replace '"args":\s*\[\s*"dist/index\.js",\s*"--port",\s*"4514"\s*\]',
-                          '"args": ["dist/index.js", "--port", "4514", "--data-dir", "../var/cmdgo"]'
-      $json = $json -replace '"path":\s*"[^"]*\.cmdgo-bridge\\\\config\.json"',
-                          '"path": "../var/cmdgo/config.json"'
-    }
-  }
-
-  # 无 BOM 写入。注意：不要对 JSON 文本做换行符替换（会把字符串内的
-  # 字面量改成真实换行，直接破坏 JSON）。源文件本身是合法 JSON 即可。
-  [System.IO.File]::WriteAllText((Join-Path $dataDst $f.Name), $json, (New-Object System.Text.UTF8Encoding $false))
-  Ok "manifest: $($f.Name)"
-}
-
-# 生成密钥占位文件：存在但为空，服务/主站首次运行时会自行写入或提示登录
-$cmdgoCfg = Join-Path $varRoot 'cmdgo\config.json'
-if (-not (Test-Path $cmdgoCfg)) {
-  [System.IO.File]::WriteAllText($cmdgoCfg, '{ "apiKey": "" }', (New-Object System.Text.UTF8Encoding $false))
-}
-
-# ---------------------------------------------------------------------------
-Step "一致性校验：manifest 与随包目录必须一一对应"
-
-# 孤儿 manifest（引用了未随包分发的服务）会在面板里永远报"找不到目录"，
-# 这种只有打包环节能拦住：目录和 manifest 都在 stage 里，逐个核对。
-$pairs = @{
-  'workbuddy.json'  = 'workbuddy-free-main'
-  'cline.json'      = 'cline-free-main'
-  'cmdgo.json'      = 'cmdgo-bridge-main'
-  'trae.json'       = 'trae-free-master'
-}
-$problems = @()
-foreach ($mf in Get-ChildItem $dataDst -Filter *.json) {
-  if (-not $pairs.ContainsKey($mf.Name)) {
-    $problems += "孤儿 manifest（无对应目录，应从包中排除）: $($mf.Name)"
-    continue
-  }
-  $dir = Join-Path $StageDir $pairs[$mf.Name]
-  if (-not (Test-Path $dir)) {
-    $problems += "manifest $($mf.Name) 引用的目录缺失: $($pairs[$mf.Name])"
-  }
-}
-foreach ($name in $pairs.Keys) {
-  if (-not (Test-Path (Join-Path $dataDst $name))) {
-    $problems += "目录 $($pairs[$name]) 存在但缺少 manifest: $name"
-  }
-}
-if ($problems.Count -gt 0) {
-  $problems | ForEach-Object { Write-Host "    ! $_" -ForegroundColor Red }
-  throw "manifest/目录 一致性校验失败（见上）"
-}
-Ok "一致性校验通过：4 个服务目录 ↔ 4 份 manifest，无孤儿项"
-
-# 密钥路径校验：manifest 里写的相对路径必须能从 workdir 解析到真实文件。
-# 已知豁免（由服务自己在首次启动时创建，打包者不该代劳）：
-#   - cline 的 .env.local：有意不打包 .env*，其 start.mjs 会自建
-$selfMinted = @('cline.json')
-foreach ($name in $pairs.Keys) {
-  $m = [System.IO.File]::ReadAllText((Join-Path $dataDst $name), [System.Text.Encoding]::UTF8) | ConvertFrom-Json
-  if (-not $m.key_source -or -not $m.key_source.path) { continue }
-  $ksPath = [string]$m.key_source.path
-  if ($ksPath.StartsWith('~')) {
-    Warn "$name 的密钥位于用户主目录（服务自建），跳过路径校验"
-    continue
-  }
-  if ([System.IO.Path]::IsPathRooted($ksPath)) { continue }
-  $resolved = [System.IO.Path]::GetFullPath((Join-Path (Join-Path $StageDir $pairs[$name]) $ksPath))
-  if (-not (Test-Path $resolved)) {
-    if ($selfMinted -contains $name) {
-      Warn "$name 的密钥文件未随包提供（服务首次启动时自行生成，属预期）"
-      continue
-    }
-    throw "manifest $name 的 key_source.path 解析不到文件: $resolved"
-  }
-}
-Ok "密钥路径校验通过"
-
-# 校验：无 BOM、无绝对路径、且每份都能被 JSON 解析器读通
-Get-ChildItem $dataDst -Filter *.json | ForEach-Object {
-  $bytes = [System.IO.File]::ReadAllBytes($_.FullName)
-  if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
-    throw "manifest 含 UTF-8 BOM（Go 无法解析）: $($_.Name)"
-  }
-  $c = [System.IO.File]::ReadAllText($_.FullName)
-  if ($c -match 'C:\\Users') { throw "manifest 仍含绝对路径: $($_.Name)" }
-  try { $null = ConvertFrom-Json -InputObject $c } catch { throw "manifest JSON 非法 ($($_.Name)): $($_.Exception.Message)" }
-}
-Ok "manifest 检查通过（无 BOM、无绝对路径、JSON 合法）"
-
-# ---------------------------------------------------------------------------
-Step "更新 QUICKSTART（trae 需要认证配置的说明）"
-Copy-Item (Join-Path $Root 'start.bat') $StageDir -Force -ErrorAction SilentlyContinue
-# start.bat 面向开发（会调用 bun/go）。分发版用专门的入口脚本覆盖：
-
+# start.bat 在仓库根面向开发（会调用 bun/go 编译）。分发版用专门的入口覆盖。
 Copy-Item (Join-Path $PSScriptRoot 'portable-start.bat') (Join-Path $StageDir 'start.bat') -Force
 Copy-Item (Join-Path $PSScriptRoot 'portable-QUICKSTART.md') (Join-Path $StageDir 'QUICKSTART.md') -Force
 Ok "启动脚本与快速上手文档"
+
+# ---------------------------------------------------------------------------
+Step "打包前校验"
+
+# 分发出去的包不该带任何本地状态：数据库、日志、凭据、插件登录态。
+$forbidden = @()
+$forbidden += Get-ChildItem $StageDir -Recurse -Force -ErrorAction SilentlyContinue |
+  Where-Object { $_.Name -match '\.(db|db-wal|db-shm|log)$' -or $_.Name -eq 'plugin-auth.json' -or $_.Name -eq '.env' }
+if ($forbidden.Count -gt 0) {
+  $forbidden | ForEach-Object { Write-Host "    ! 不该进包的文件: $($_.FullName)" -ForegroundColor Red }
+  throw "打包内容含本地状态文件（见上）"
+}
+Ok "无数据库 / 日志 / 凭据"
+
+# 二进制必须能起来：--version 之类的自检不做，但至少确认不是 0 字节
+$exe = Get-Item (Join-Path $StageDir 'new-api-dev.exe')
+if ($exe.Length -lt 5MB) { throw "new-api-dev.exe 只有 $([math]::Round($exe.Length/1MB,1)) MB，像是编译失败的空壳" }
+Ok "主站二进制 $([math]::Round($exe.Length/1MB,1)) MB"
 
 # ---------------------------------------------------------------------------
 Step "打包 zip"

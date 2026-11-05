@@ -50,7 +50,8 @@ if not errorlevel 1 (
 )
 
 echo [BridgeHub] starting hub at http://localhost:4501
-echo [BridgeHub] enabled relay services auto-start from their manifests.
+echo [BridgeHub] first run: open the page, create your own admin account,
+echo             then install a provider plugin and sign in to your account.
 echo [BridgeHub] stop: close this window or press Ctrl+C
 echo.
 start "" http://localhost:4501

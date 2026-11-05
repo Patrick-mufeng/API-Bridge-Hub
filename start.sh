@@ -29,6 +29,7 @@ if netstat -ano 2>/dev/null | grep LISTENING | grep -q ":4501 "; then
 fi
 
 echo "[BridgeHub] starting hub at http://localhost:4501"
-echo "[BridgeHub] enabled relay services auto-start from their manifests"
+echo "[BridgeHub] first run: open the page, create your own admin account,"
+echo "            then install a provider plugin and sign in to your account."
 "$BIN" || echo "[!] the server exited unexpectedly - see the error above"
 read -rp "Press Enter to close..." _
