@@ -1,5 +1,11 @@
 name: CI
 
+# The repository root holds new-api-main/ (the hub) plus the optional upstream
+# sidecars. This workflow used to live in new-api-main/.github, where GitHub
+# never reads it — a repository's workflows are the ones under its own
+# .github/workflows — so nothing here had ever run. It lives here now, and
+# every path below is relative to this file's parent parent.
+
 on:
   push:
     branches: [main]
@@ -23,6 +29,9 @@ jobs:
     timeout-minutes: 15
     env:
       GOWORK: 'off'
+    defaults:
+      run:
+        working-directory: new-api-main
 
     steps:
       - name: Checkout
@@ -46,11 +55,11 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
-          go-version-file: go.mod
+          go-version-file: new-api-main/go.mod
           cache-dependency-path: |
-            go.sum
-            relaykit/go.sum
-            tokenkit/go.sum
+            new-api-main/go.sum
+            new-api-main/relaykit/go.sum
+            new-api-main/tokenkit/go.sum
 
       - name: Create frontend embed placeholder
         run: |
@@ -73,22 +82,22 @@ jobs:
         run: go vet ./...
 
       - name: Vet relaykit independently
-        working-directory: relaykit
+        working-directory: new-api-main/relaykit
         run: go vet ./...
 
       - name: Vet tokenkit independently
-        working-directory: tokenkit
+        working-directory: new-api-main/tokenkit
         run: go vet ./...
 
       - name: Build root module
         run: go build ./...
 
       - name: Build relaykit independently
-        working-directory: relaykit
+        working-directory: new-api-main/relaykit
         run: go build ./...
 
       - name: Build tokenkit independently
-        working-directory: tokenkit
+        working-directory: new-api-main/tokenkit
         run: go build ./...
 
       - name: Test root, relaykit, and tokenkit modules
@@ -104,6 +113,9 @@ jobs:
     timeout-minutes: 15
     env:
       GOWORK: 'off'
+    defaults:
+      run:
+        working-directory: new-api-main
 
     steps:
       - name: Checkout
@@ -127,11 +139,11 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
-          go-version-file: go.mod
+          go-version-file: new-api-main/go.mod
           cache-dependency-path: |
-            go.sum
-            relaykit/go.sum
-            tokenkit/go.sum
+            new-api-main/go.sum
+            new-api-main/relaykit/go.sum
+            new-api-main/tokenkit/go.sum
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -149,6 +161,22 @@ jobs:
       - name: Walk every plugin endpoint against it
         run: node scripts/smoke-plugin-host.mjs ./smoke-server
 
+  # The portable pack referenced directories that a refactor deleted, and
+  # nothing noticed because no job built the pack. -CheckOnly is the cheap
+  # half: it verifies every input the script reads still exists.
+  pack:
+    name: Portable pack inputs
+    if: github.event_name != 'pull_request' || github.event.action != 'closed' || github.event.pull_request.merged == true
+    runs-on: windows-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Every file the pack reads is still there
+        shell: pwsh
+        run: ./scripts/build-portable.ps1 -CheckOnly
 
   frontend:
     name: Frontend typecheck and test
@@ -157,7 +185,7 @@ jobs:
     timeout-minutes: 10
     defaults:
       run:
-        working-directory: web
+        working-directory: new-api-main/web
 
     steps:
       - name: Checkout
