@@ -1,6 +1,7 @@
 package service
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -60,13 +61,61 @@ func ShouldRetryRelayError(c *gin.Context, openaiErr *types.NewAPIError, retryTi
 	return DecideRelayRetry(c, openaiErr, retryTimes).Action == "retry"
 }
 
+// isAccountFailure is whether the status is the kind a vendor answers when an
+// account's sign-in lapsed or its allowance ran out — the two states a plugin
+// can report and routing can act on. A 429 is included: a pooled account out
+// of quota answers it just as a rate-limited one does, and asking the plugin
+// is how the two are told apart.
+func isAccountFailure(err *types.NewAPIError) bool {
+	if err == nil {
+		return false
+	}
+	switch err.StatusCode {
+	case http.StatusUnauthorized, http.StatusForbidden, http.StatusPaymentRequired, http.StatusTooManyRequests:
+		return true
+	}
+	return false
+}
+
+// ChannelFailureHook is what a package that knows more about a channel than
+// this one does — pluginreg, whose channels are backed by a vendor account —
+// registers to be told a request just failed on it. A nil hook (the default)
+// means nothing to tell.
+//
+// It is a hook rather than a call because service is imported by pluginreg's
+// caller, not the other way round: importing pluginreg from here would close
+// the cycle.
+var ChannelFailureHook func(channelID int)
+
+// notifyChannelFailure tells the registered hook, if any. It is called for
+// every failed attempt, before the retry decision is acted on, so a lapsed
+// account is moved out of routing before the next attempt picks a channel.
+func notifyChannelFailure(channelID int) {
+	if channelID != 0 && ChannelFailureHook != nil {
+		ChannelFailureHook(channelID)
+	}
+}
+
 func ProcessChannelError(c *gin.Context, channelError types.ChannelError, err *types.NewAPIError, relayInfo *relaycommon.RelayInfo) {
 	if err == nil {
 		return
 	}
 	logger.LogError(c, common.LogText("channel error (channel #%d, status code: %d): %s", channelError.ChannelId, err.StatusCode, common.LocalLogPreview(err.MaskSensitiveErrorWithStatusCode())))
-	if ShouldDisableChannel(err) && channelError.AutoBan {
-		reason := err.MaskSensitiveErrorWithStatusCode()
+
+	reason := err.MaskSensitiveErrorWithStatusCode()
+	// A 429 or a 5xx is a key having a bad minute, not a channel that should
+	// be switched off until a person turns it back on: rest it, and the pool's
+	// other keys keep serving. Only a pooled channel has a key to rest; a
+	// one-key channel falls through to the disable below as before.
+	rested := RestChannelKey(channelError.ChannelId, channelError.UsingKey, err.StatusCode, reason)
+
+	// A sign-in or balance failure is the vendor telling us this account is
+	// done for now. Ask the plugin what it knows, so the retry below (and the
+	// next request) routes around it instead of finding out the same way.
+	if isAccountFailure(err) {
+		notifyChannelFailure(channelError.ChannelId)
+	}
+	if !rested && ShouldDisableChannel(err) && channelError.AutoBan {
 		gopool.Go(func() {
 			DisableChannel(channelError, reason)
 		})

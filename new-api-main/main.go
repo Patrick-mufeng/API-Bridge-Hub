@@ -139,6 +139,10 @@ func main() {
 	// Plugin account health: a lapsed sign-in's channel is turned off, so
 	// routing passes it by instead of failing over after the fact.
 	pluginreg.StartHealthWorker(context.Background())
+	// A request that failed with 401/403/402/429 asks the plugin about that
+	// account at once, instead of waiting for the five-minute timer: the
+	// next attempt then routes around an account that lapsed a minute ago.
+	service.ChannelFailureHook = pluginreg.SyncChannelHealthAfterFailure
 	// Renewal and the daily check-in: an account is kept alive before its
 	// vendor expires it, and its credits are claimed each day without anyone
 	// opening a page.
@@ -384,9 +388,6 @@ func InitResources() error {
 	}
 
 	service.StartAuthArtifactCleanup()
-
-	// Prepare the manifest-driven reverse proxy service manager: create its
-	// data layout, install seed manifests, and load the current definitions.
 
 	return nil
 }

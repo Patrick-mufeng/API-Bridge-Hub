@@ -35,6 +35,51 @@ func RootUserLanguage() string {
 	return root.GetSetting().Language
 }
 
+// RestChannelKey rests one key of a pooled channel instead of switching it
+// off, for a failure that passes: a 429, a 5xx. It reports whether the key was
+// rested, so the caller can tell "handled" from "this needs a disable".
+//
+// Only a pooled channel has keys to rest; a one-key channel is a channel, and
+// DisableChannel is what a repeated failure there means.
+func RestChannelKey(channelId int, key string, status int, reason string) bool {
+	if channelId == 0 || key == "" {
+		return false
+	}
+	d := model.CooldownForStatus(status)
+	if d <= 0 {
+		return false
+	}
+	ch, err := model.GetChannelById(channelId, true)
+	if err != nil || ch == nil || !ch.ChannelInfo.IsMultiKey {
+		return false
+	}
+	if !ch.RestMultiKey(key, d, reason) {
+		return false
+	}
+	if err := ch.SaveChannelInfo(); err != nil {
+		common.SysLog(common.LogText("failed to save the rest of a key of channel #%d: %v", channelId, err))
+		return false
+	}
+	common.SysLog(common.LogText("channel #%d key rested for %s: %s", channelId, d, common.LocalLogPreview(reason)))
+	return true
+}
+
+// ClearChannelKeyRest brings a key back as soon as it serves a request.
+func ClearChannelKeyRest(channelId int, key string) {
+	if channelId == 0 || key == "" {
+		return
+	}
+	ch, err := model.GetChannelById(channelId, true)
+	if err != nil || ch == nil {
+		return
+	}
+	if ch.ClearMultiKeyRest(key) {
+		if err := ch.SaveChannelInfo(); err != nil {
+			common.SysLog(common.LogText("failed to clear the rest of a key of channel #%d: %v", channelId, err))
+		}
+	}
+}
+
 // disable & notify
 func DisableChannel(channelError types.ChannelError, reason string) {
 	common.SysLog(common.LogText("channel %q (#%d) failed, disabling it, reason: %s", channelError.ChannelName, channelError.ChannelId, common.LocalLogPreview(reason)))

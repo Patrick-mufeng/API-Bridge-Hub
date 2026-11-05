@@ -198,6 +198,10 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 		if newAPIError == nil {
 			service.MarkRequestPolicySuccess(c, relayInfo.StreamStatus)
+			// A key that just answered is not resting, whatever an earlier
+			// 429 said: clear it now so the poller stops skipping a key that
+			// has already proved itself.
+			service.ClearChannelKeyRest(channel.Id, common.GetContextKeyString(c, constant.ContextKeyChannelKey))
 			relayInfo.LastError = nil
 			return
 		}

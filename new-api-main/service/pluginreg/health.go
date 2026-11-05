@@ -6,10 +6,13 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/pkg/pluginhost"
+
+	"github.com/bytedance/gopkg/util/gopool"
 )
 
 // AccountHealth is what a plugin says of one account's sign-in.
@@ -174,6 +177,26 @@ func readHealth(ctx context.Context, provider, account string) AccountHealth {
 	return h
 }
 
+// spendShare is how full an account's allowance is, 0–100, as the fullest of
+// its windows.
+//
+// The fullest, not an average: whatever runs out first is what will refuse the
+// next request, and a weekly window with room left is no help when the
+// five-hour one is at 98%. A window the plugin gave no figure for is skipped;
+// no window at all means nothing is known, and routing keeps its own order.
+func spendShare(windows []QuotaWindow) (float64, bool) {
+	fullest, known := 0.0, false
+	for _, w := range windows {
+		if w.Used <= 0 {
+			continue
+		}
+		if !known || w.Used > fullest {
+			fullest, known = w.Used, true
+		}
+	}
+	return fullest, known
+}
+
 // applyHealth moves what the account's health calls for.
 //
 // UpdateChannelStatus takes the key the request used: on a pooled channel it
@@ -193,6 +216,26 @@ func applyHealth(h *AccountHealth) {
 		return
 	}
 	pooled := ch.ChannelInfo.IsMultiKey && h.KeyIndex >= 0
+	if pooled {
+		// Record what the vendor says is spent, so routing can prefer an
+		// account with room over one about to answer 429. The share is the
+		// fullest of its windows: a five-hour window at 95% is what runs out
+		// first, whatever the weekly one says.
+		share, known := spendShare(h.Windows)
+		if known {
+			if ch.ChannelInfo.MultiKeyUsedShare == nil {
+				ch.ChannelInfo.MultiKeyUsedShare = make(map[int]float64)
+			}
+			if ch.ChannelInfo.MultiKeyUsageAt == nil {
+				ch.ChannelInfo.MultiKeyUsageAt = make(map[int]int64)
+			}
+			ch.ChannelInfo.MultiKeyUsedShare[h.KeyIndex] = share
+			ch.ChannelInfo.MultiKeyUsageAt[h.KeyIndex] = common.GetTimestamp()
+			if err := ch.SaveChannelInfo(); err != nil {
+				common.SysLog(common.LogText("failed to record the allowance of channel #%d key %d: %v", h.ChannelID, h.KeyIndex, err))
+			}
+		}
+	}
 	switch {
 	case !h.Healthy && (ch.Status == common.ChannelStatusEnabled || pooled):
 		key := ""
@@ -216,12 +259,67 @@ func applyHealth(h *AccountHealth) {
 	}
 }
 
-// RenewHealth keeps every plugin account's channel in step with what its
+// SyncAllHealth keeps every plugin account's channel in step with what its
 // plugin says, on a timer. It is what makes a hub that nobody opens still
 // route around an account that lapsed overnight.
 func SyncAllHealth(ctx context.Context) error {
 	_, err := SyncHealth(ctx, "")
 	return err
+}
+
+// syncCooldown keeps a burst of failing requests from turning into a burst of
+// plugin asks. A 401 from one request is rarely alone: the other requests in
+// flight hit it too, and each one would otherwise ask the plugin the same
+// question within the same second.
+const syncCooldown = 30 * time.Second
+
+var (
+	syncMu   sync.Mutex
+	syncLast = map[string]time.Time{}
+)
+
+// SyncChannelHealthAfterFailure asks the plugin about the accounts behind one
+// channel after a request failed on it with a sign-in or quota status.
+//
+// The timer alone is too slow for this: an account whose token lapsed in the
+// night keeps answering requests as "the token is wrong" until the next
+// five-minute pass moves it out. Doing it here means the second request
+// already routes around it.
+//
+// It runs in the background and never fails the request: whatever the plugin
+// says is a correction to routing, not a reason to turn a served reply into
+// an error.
+func SyncChannelHealthAfterFailure(channelID int) {
+	if channelID == 0 {
+		return
+	}
+	ch, err := model.GetChannelById(channelID, true)
+	if err != nil || ch == nil {
+		return
+	}
+	provider := channelProvider(ch)
+	if provider == "" {
+		return // not a plugin channel: nothing here can read its accounts
+	}
+	now := time.Now()
+	syncMu.Lock()
+	if last, ok := syncLast[provider]; ok && now.Sub(last) < syncCooldown {
+		syncMu.Unlock()
+		return
+	}
+	syncLast[provider] = now
+	syncMu.Unlock()
+
+	gopool.Go(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		list, err := SyncHealth(ctx, provider)
+		if err != nil {
+			common.SysLog(common.LogText("plugin health after a failed request (provider %s): %v", provider, err))
+			return
+		}
+		common.SysLog(common.LogText("plugin health after a failed request (provider %s): %s", provider, DescribeHealth(list)))
+	})
 }
 
 // DescribeHealth is one line per provider, for a log: how many of its

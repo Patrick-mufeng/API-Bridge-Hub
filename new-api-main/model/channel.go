@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
@@ -69,6 +70,31 @@ type ChannelInfo struct {
 	MultiKeyDisabledTime   map[int]int64         `json:"multi_key_disabled_time,omitempty"`   // key禁用时间列表，key index -> time
 	MultiKeyPollingIndex   int                   `json:"multi_key_polling_index"`             // 多Key模式下轮询的key索引
 	MultiKeyMode           constant.MultiKeyMode `json:"multi_key_mode"`
+
+	// MultiKeyCooldownUntil rests a key for a while instead of switching it
+	// off: key index -> unix time it may be tried again. A key that answered
+	// 429 or 5xx is rate-limited or the vendor is having a moment, not dead —
+	// disabling it would need a person to turn it back on, and stopping at
+	// "one account is throttled" would take the whole pool down with it.
+	//
+	// It is separate from MultiKeyStatusList so a manual delete of a status
+	// entry can never be confused with a rest that has simply run out.
+	MultiKeyCooldownUntil map[int]int64 `json:"multi_key_cooldown_until,omitempty"`
+	// MultiKeyCooldownReason is why, for the account list to show.
+	MultiKeyCooldownReason map[int]string `json:"multi_key_cooldown_reason,omitempty"`
+
+	// MultiKeyUsedShare is how much of a key's allowance is spent, 0–100,
+	// as its vendor last reported it: key index -> share. A plugin account
+	// whose five-hour window is 95% gone should not be handed the next
+	// request only to answer 429 and need a retry; the pool has other
+	// accounts with room.
+	//
+	// Empty for a channel whose keys are plain API keys: a key's vendor
+	// reports nothing, so there is nothing to prefer.
+	MultiKeyUsedShare map[int]float64 `json:"multi_key_used_share,omitempty"`
+	// MultiKeyUsageAt is when that share was read (unix seconds), so a
+	// figure older than a window's reset is not trusted.
+	MultiKeyUsageAt map[int]int64 `json:"multi_key_usage_at,omitempty"`
 }
 
 type ChannelSortOptions struct {
@@ -232,11 +258,24 @@ func (channel *Channel) GetNextEnabledKey() (string, int, *types.NewAPIError) {
 		return common.ChannelStatusEnabled
 	}
 
-	// Collect indexes of enabled keys
+	// A key is usable when it is enabled and not resting. Resting keys are
+	// skipped rather than disabled: a 429 says "not now", not "never".
+	now := common.GetTimestamp()
+	inCooldown := func(idx int) bool {
+		until, ok := channel.ChannelInfo.MultiKeyCooldownUntil[idx]
+		return ok && until > now
+	}
+
+	// Collect indexes of usable keys
 	enabledIdx := make([]int, 0, len(keys))
+	available := make([]int, 0, len(keys))
 	for i := range keys {
-		if getStatus(i) == common.ChannelStatusEnabled {
-			enabledIdx = append(enabledIdx, i)
+		if getStatus(i) != common.ChannelStatusEnabled {
+			continue
+		}
+		enabledIdx = append(enabledIdx, i)
+		if !inCooldown(i) {
+			available = append(available, i)
 		}
 	}
 	// If no specific status list or none enabled, return an explicit error so caller can
@@ -246,10 +285,64 @@ func (channel *Channel) GetNextEnabledKey() (string, int, *types.NewAPIError) {
 		return "", 0, types.NewError(errors.New("no enabled keys"), types.ErrorCodeChannelNoAvailableKey)
 	}
 
+	// Every key resting: one of them is better than telling the client the
+	// pool is empty, and the earliest to come back is the one least likely to
+	// answer 429 again. This is what keeps a six-account pool working when a
+	// vendor throttles all six for a minute.
+	if len(available) == 0 {
+		soonest := -1
+		var soonestUntil int64
+		for _, idx := range enabledIdx {
+			until := channel.ChannelInfo.MultiKeyCooldownUntil[idx]
+			if soonest < 0 || until < soonestUntil {
+				soonest, soonestUntil = idx, until
+			}
+		}
+		available = []int{soonest}
+	}
+
+	// An account near the end of its allowance is kept for when the others
+	// can't take a request. Without this the pool polls in a fixed circle, so
+	// a five-hour window that is 95% spent still gets its turn, answers 429,
+	// and costs the client a retry — the exact failure a pool exists to avoid.
+	//
+	// The shares come from the health sync, which reads them from the plugin;
+	// a reading older than this is ignored rather than trusted, because the
+	// window it describes may have reset since.
+	usedShare := func(idx int) (float64, bool) {
+		at, ok := channel.ChannelInfo.MultiKeyUsageAt[idx]
+		if !ok || common.GetTimestamp()-at > int64(usageFreshFor.Seconds()) {
+			return 0, false
+		}
+		share, ok := channel.ChannelInfo.MultiKeyUsedShare[idx]
+		return share, ok
+	}
+	hasRoom := func(idx int) bool {
+		share, known := usedShare(idx)
+		return !known || share < keySpentShare
+	}
+	withRoom := make([]int, 0, len(available))
+	for _, idx := range available {
+		if hasRoom(idx) {
+			withRoom = append(withRoom, idx)
+		}
+	}
+	// Every account is nearly spent: still serve, newest-allowance-first is
+	// not knowable here, so the poll order stands.
+	if len(withRoom) > 0 {
+		available = withRoom
+	}
+	// usable is the one rule every branch below asks: enabled, not resting,
+	// and, when the pool knows better, not nearly spent.
+	usable := make(map[int]bool, len(available))
+	for _, idx := range available {
+		usable[idx] = true
+	}
+
 	switch channel.ChannelInfo.MultiKeyMode {
 	case constant.MultiKeyModeRandom:
-		// Randomly pick one enabled key
-		selectedIdx := enabledIdx[rand.Intn(len(enabledIdx))]
+		// Randomly pick one available key
+		selectedIdx := available[rand.Intn(len(available))]
 		return keys[selectedIdx], selectedIdx, nil
 	case constant.MultiKeyModePolling:
 		// Use channel-specific lock to ensure thread-safe polling
@@ -268,24 +361,24 @@ func (channel *Channel) GetNextEnabledKey() (string, int, *types.NewAPIError) {
 				// CacheUpdateChannel(channel)
 			}
 		}()
-		// Start from the saved polling index and look for the next enabled key
+		// Start from the saved polling index and look for the next usable key
 		start := channelInfo.MultiKeyPollingIndex
 		if start < 0 || start >= len(keys) {
 			start = 0
 		}
 		for i := range keys {
 			idx := (start + i) % len(keys)
-			if getStatus(idx) == common.ChannelStatusEnabled {
+			if usable[idx] {
 				// update polling index for next call (point to the next position)
 				channel.ChannelInfo.MultiKeyPollingIndex = (idx + 1) % len(keys)
 				return keys[idx], idx, nil
 			}
 		}
-		// Fallback – should not happen, but return first enabled key
-		return keys[enabledIdx[0]], enabledIdx[0], nil
+		// Fallback – every key rests: the one coming back soonest
+		return keys[available[0]], available[0], nil
 	default:
-		// Unknown mode, default to first enabled key (or original key string)
-		return keys[enabledIdx[0]], enabledIdx[0], nil
+		// Unknown mode, default to the first available key (or original key string)
+		return keys[available[0]], available[0], nil
 	}
 }
 
@@ -699,6 +792,11 @@ func handlerMultiKeyUpdate(channel *Channel, usingKey string, status int, reason
 		}
 		if status == common.ChannelStatusEnabled {
 			delete(channel.ChannelInfo.MultiKeyStatusList, keyIndex)
+			// A key that works again is not resting either: keeping the
+			// cooldown would make the poller skip a healthy key for up to a
+			// minute after a success that already proved it fine.
+			delete(channel.ChannelInfo.MultiKeyCooldownUntil, keyIndex)
+			delete(channel.ChannelInfo.MultiKeyCooldownReason, keyIndex)
 		} else {
 			channel.ChannelInfo.MultiKeyStatusList[keyIndex] = status
 			if channel.ChannelInfo.MultiKeyDisabledReason == nil {
@@ -731,6 +829,99 @@ func hasEnabledMultiKey(keys []string, statusList map[int]int) bool {
 		if !ok || status == common.ChannelStatusEnabled {
 			return true
 		}
+	}
+	return false
+}
+
+// keySpentShare is how much of an account's allowance may be used before the
+// pool stops handing it requests while another account has room. 90, not 100:
+// the last tenth is what covers a request already in flight, and an account at
+// exactly 100 has nothing to give.
+const keySpentShare = 90.0
+
+// usageFreshFor is how old a reported allowance share may be and still steer
+// routing. The shortest window a vendor reports is five hours, so a figure a
+// few minutes old still describes the same window.
+const usageFreshFor = 5 * time.Minute
+
+// CooldownForStatus is how long a key rests after one failure, "0s" for a
+// failure that should switch it off rather than rest it.
+//
+// The split is the difference between "this account is throttled" and "this
+// account's sign-in is gone". A throttle passes; a revoked token does not, and
+// resting one only means the pool keeps trying it every few minutes and
+// failing the requests that land on it. 429 and the transient 5xx are the
+// first kind; 401/403 and the rest are the second.
+func CooldownForStatus(status int) time.Duration {
+	switch {
+	case status == 429:
+		// A minute is long enough to skip the burst that caused it and short
+		// enough that a pool of one account still recovers on its own.
+		return time.Minute
+	case status >= 500 && status <= 599:
+		return 30 * time.Second
+	}
+	return 0
+}
+
+// RestMultiKey puts one key of a pooled channel to sleep for d, leaving the
+// rest of the pool serving. It is what a 429 does to an account: the account
+// is not disabled, so nothing has to be turned back on by hand, and the
+// channel's status is untouched unless every key is out.
+//
+// A key already disabled stays disabled: rest is weaker than off.
+func (channel *Channel) RestMultiKey(key string, d time.Duration, reason string) bool {
+	if channel == nil || d <= 0 || !channel.ChannelInfo.IsMultiKey {
+		return false
+	}
+	keys := channel.GetKeys()
+	idx := -1
+	for i, k := range keys {
+		if k == key {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		return false
+	}
+	if st, ok := channel.ChannelInfo.MultiKeyStatusList[idx]; ok && st != common.ChannelStatusEnabled {
+		return false // already off for a better reason than a rest
+	}
+	until := common.GetTimestamp() + int64(d.Seconds())
+	if cur, ok := channel.ChannelInfo.MultiKeyCooldownUntil[idx]; ok && cur >= until {
+		return false // already resting at least as long
+	}
+	if channel.ChannelInfo.MultiKeyCooldownUntil == nil {
+		channel.ChannelInfo.MultiKeyCooldownUntil = make(map[int]int64)
+	}
+	if channel.ChannelInfo.MultiKeyCooldownReason == nil {
+		channel.ChannelInfo.MultiKeyCooldownReason = make(map[int]string)
+	}
+	channel.ChannelInfo.MultiKeyCooldownUntil[idx] = until
+	channel.ChannelInfo.MultiKeyCooldownReason[idx] = reason
+	return true
+}
+
+// ClearMultiKeyRest brings one key back as soon as it answers: a key that just
+// served a request has proved whatever the rest was for is over.
+func (channel *Channel) ClearMultiKeyRest(key string) bool {
+	if channel == nil || !channel.ChannelInfo.IsMultiKey {
+		return false
+	}
+	if len(channel.ChannelInfo.MultiKeyCooldownUntil) == 0 {
+		return false
+	}
+	for i, k := range channel.GetKeys() {
+		if k != key {
+			continue
+		}
+		if _, ok := channel.ChannelInfo.MultiKeyCooldownUntil[i]; !ok {
+			return false
+		}
+		delete(channel.ChannelInfo.MultiKeyCooldownUntil, i)
+		delete(channel.ChannelInfo.MultiKeyCooldownReason, i)
+		return true
 	}
 	return false
 }
